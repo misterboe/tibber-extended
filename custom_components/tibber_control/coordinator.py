@@ -18,6 +18,7 @@ GRAPHQL_QUERY = """
   viewer {
     homes {
       id
+      appNickname
       currentSubscription {
         priceInfo {
           current {
@@ -116,7 +117,15 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             cheapest_hours = sorted_today[:3] if len(sorted_today) >= 3 else sorted_today
             expensive_hours = sorted_today[-3:] if len(sorted_today) >= 3 else sorted_today
 
+            # Extract home info for device
+            home_info = {
+                "id": home_data["id"],
+                "name": home_data.get("appNickname") or "Tibber Home",
+                "address": home_data.get("address", {}),
+            }
+
             return {
+                "home": home_info,
                 "current": price_info["current"],
                 "today": price_info.get("today", []),
                 "tomorrow": price_info.get("tomorrow", []),

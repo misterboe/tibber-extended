@@ -7,5 +7,5 @@
   "documentation": "https://github.com/misterboe/tibber-extended",
   "iot_class": "cloud_polling",
   "requirements": ["requests>=2.32.0"],
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
