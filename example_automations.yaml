@@ -1,0 +1,291 @@
+# Beispiel-Automatisierungen für Tibber Smart Control
+# Kopiere diese in deine automations.yaml oder erstelle sie über die UI
+
+# ============================================
+# BATTERIE MANAGEMENT
+# ============================================
+
+# 1. BYD Batterie bei sehr günstigen Preisen laden
+- alias: "BYD Battery - Laden bei VERY_CHEAP"
+  description: "Lädt die BYD Batterie wenn Strom sehr günstig ist"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tibber_is_very_cheap
+      to: "on"
+  condition:
+    # Nur laden wenn SOC unter 90%
+    - condition: numeric_state
+      entity_id: sensor.byd_soc
+      below: 90
+  action:
+    # Hier Service zum Batterie laden einfügen
+    # Beispiel mit Kostal PLENTICORE:
+    # - service: modbus.write_register
+    #   data:
+    #     hub: kostal
+    #     address: 1034
+    #     value: 1  # Battery charging aktivieren
+    - service: notify.mobile_app
+      data:
+        title: "⚡ BYD Batterie lädt"
+        message: >
+          Strom ist sehr günstig: {{ states('sensor.tibber_current_price') }} EUR/kWh
+          Batterie SOC: {{ states('sensor.byd_soc') }}%
+
+# 2. BYD Batterie bei teuren Preisen entladen
+- alias: "BYD Battery - Entladen bei EXPENSIVE"
+  description: "Nutzt die BYD Batterie wenn Strom teuer ist"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tibber_is_expensive
+      to: "on"
+  condition:
+    # Nur entladen wenn SOC über 30%
+    - condition: numeric_state
+      entity_id: sensor.byd_soc
+      above: 30
+  action:
+    # Hier Service zum Batterie entladen einfügen
+    - service: notify.mobile_app
+      data:
+        title: "🔋 BYD Batterie entlädt"
+        message: >
+          Strom ist teuer: {{ states('sensor.tibber_current_price') }} EUR/kWh
+          Batterie SOC: {{ states('sensor.byd_soc') }}%
+
+# 3. Optimales Laden in den günstigsten Stunden
+- alias: "BYD Battery - Smart Charging (Top 3 Stunden)"
+  description: "Lädt gezielt in den 3 günstigsten Stunden des Tages"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tibber_is_cheapest_hour
+      to: "on"
+  condition:
+    - condition: numeric_state
+      entity_id: sensor.byd_soc
+      below: 100
+    # Nur laden wenn noch Platz ist
+    - condition: template
+      value_template: "{{ states('sensor.byd_soc') | float < 95 }}"
+  action:
+    # Maximales Laden aktivieren
+    - service: notify.mobile_app
+      data:
+        title: "⭐ Top günstige Stunde!"
+        message: >
+          Jetzt laden! Eine der 3 günstigsten Stunden heute.
+          Preis: {{ states('sensor.tibber_current_price') }} EUR/kWh
+          Durchschnitt: {{ states('sensor.tibber_average_price') }} EUR/kWh
+          Günstigste Stunden: {{ state_attr('binary_sensor.tibber_is_cheapest_hour', 'cheapest_hours') }}
+
+# ============================================
+# TESLA / EV CHARGING
+# ============================================
+
+# 4. Tesla bei guten Ladezeiten laden
+- alias: "Tesla - Smart Charging"
+  description: "Startet Tesla Laden bei günstigen Preisen"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tibber_is_good_charging_time
+      to: "on"
+  condition:
+    # Nur laden wenn Tesla zuhause und unter 80%
+    - condition: state
+      entity_id: device_tracker.tesla
+      state: "home"
+    - condition: numeric_state
+      entity_id: sensor.tesla_battery
+      below: 80
+  action:
+    - service: switch.turn_on
+      target:
+        entity_id: switch.tesla_charger
+    - service: notify.mobile_app
+      data:
+        title: "🚗 Tesla lädt"
+        message: >
+          Gute Ladezeit erkannt!
+          Preis: {{ states('sensor.tibber_current_price') }} EUR/kWh
+          Level: {{ states('sensor.tibber_price_level') }}
+
+# 5. Tesla Laden stoppen bei teuren Preisen
+- alias: "Tesla - Stopp bei EXPENSIVE"
+  description: "Stoppt Tesla Laden wenn Strom teuer wird"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tibber_is_expensive
+      to: "on"
+  condition:
+    - condition: state
+      entity_id: switch.tesla_charger
+      state: "on"
+  action:
+    - service: switch.turn_off
+      target:
+        entity_id: switch.tesla_charger
+    - service: notify.mobile_app
+      data:
+        title: "🚗 Tesla Laden pausiert"
+        message: >
+          Strom ist teuer: {{ states('sensor.tibber_current_price') }} EUR/kWh
+          Batterie: {{ states('sensor.tesla_battery') }}%
+
+# ============================================
+# BENACHRICHTIGUNGEN
+# ============================================
+
+# 6. Tägliche Übersicht der günstigsten Stunden
+- alias: "Tibber - Tägliche Preisübersicht"
+  description: "Sendet morgens eine Übersicht der günstigsten Stunden"
+  trigger:
+    - platform: time
+      at: "08:00:00"
+  action:
+    - service: notify.mobile_app
+      data:
+        title: "⚡ Tibber Preisübersicht Heute"
+        message: >
+          Durchschnitt: {{ states('sensor.tibber_average_price') }} EUR/kWh
+          Min: {{ states('sensor.tibber_min_price') }} EUR/kWh
+          Max: {{ states('sensor.tibber_max_price') }} EUR/kWh
+
+          Günstigste Stunden:
+          {{ states('sensor.tibber_cheapest_hours') }}
+
+          Teuerste Stunden:
+          {{ states('sensor.tibber_most_expensive_hours') }}
+
+# 7. Warnung bei sehr hohen Preisen
+- alias: "Tibber - Warnung sehr hohe Preise"
+  description: "Warnt wenn Preise sehr hoch sind"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.tibber_is_very_expensive
+      to: "on"
+  action:
+    - service: notify.mobile_app
+      data:
+        title: "⚠️ Sehr hohe Strompreise!"
+        message: >
+          Aktuell: {{ states('sensor.tibber_current_price') }} EUR/kWh
+          Das ist {{ ((states('sensor.tibber_current_price') | float / states('sensor.tibber_average_price') | float - 1) * 100) | round(0) }}% über dem Durchschnitt!
+
+          Vermeide unnötigen Verbrauch!
+
+# ============================================
+# ERWEITERTE AUTOMATISIERUNGEN
+# ============================================
+
+# 8. Intelligentes Energie-Management
+- alias: "Smart Energy Management - Master"
+  description: "Zentrale Steuerung aller Verbraucher basierend auf Preis"
+  trigger:
+    - platform: state
+      entity_id:
+        - binary_sensor.tibber_is_very_cheap
+        - binary_sensor.tibber_is_cheap
+        - binary_sensor.tibber_is_expensive
+        - binary_sensor.tibber_is_very_expensive
+  action:
+    - choose:
+        # SEHR GÜNSTIG - Alles an
+        - conditions:
+            - condition: state
+              entity_id: binary_sensor.tibber_is_very_cheap
+              state: "on"
+          sequence:
+            - service: switch.turn_on
+              target:
+                entity_id:
+                  - switch.tesla_charger
+                  - switch.heat_pump_boost
+                  # - switch.warmwasserspeicher
+            - service: notify.mobile_app
+              data:
+                message: "⚡ SEHR GÜNSTIG - Alle Verbraucher aktiviert"
+
+        # GÜNSTIG - Essentielles laden
+        - conditions:
+            - condition: state
+              entity_id: binary_sensor.tibber_is_cheap
+              state: "on"
+          sequence:
+            - service: switch.turn_on
+              target:
+                entity_id: switch.tesla_charger
+
+        # TEUER - Batterie nutzen, Verbraucher reduzieren
+        - conditions:
+            - condition: state
+              entity_id: binary_sensor.tibber_is_expensive
+              state: "on"
+          sequence:
+            - service: switch.turn_off
+              target:
+                entity_id:
+                  - switch.tesla_charger
+                  - switch.heat_pump_boost
+
+        # SEHR TEUER - Alles aus, nur Batterie
+        - conditions:
+            - condition: state
+              entity_id: binary_sensor.tibber_is_very_expensive
+              state: "on"
+          sequence:
+            - service: switch.turn_off
+              target:
+                entity_id:
+                  - switch.tesla_charger
+                  - switch.heat_pump_boost
+            - service: notify.mobile_app
+              data:
+                message: "⚠️ SEHR TEUER - Nur Batteriebetrieb"
+
+# 9. Preisbasierte Klimaanlagen-Steuerung
+- alias: "Klimaanlage - Nur bei günstigen Preisen"
+  description: "Erlaubt Klimaanlage nur wenn Strom günstig ist"
+  trigger:
+    - platform: state
+      entity_id: climate.wohnzimmer
+      to: "cool"
+  condition:
+    # Blockiert wenn Strom teuer ist
+    - condition: state
+      entity_id: binary_sensor.tibber_is_expensive
+      state: "on"
+  action:
+    - service: climate.turn_off
+      target:
+        entity_id: climate.wohnzimmer
+    - service: notify.mobile_app
+      data:
+        message: "❄️ Klimaanlage deaktiviert - Strom ist zu teuer"
+
+# 10. Nachtladen bei günstigen Nachtstrom
+- alias: "BYD Battery - Nachtladen (günstig)"
+  description: "Lädt BYD nachts nur wenn Preis günstig ist"
+  trigger:
+    - platform: time
+      at: "02:00:00"
+  condition:
+    # Nur laden wenn günstig UND SOC niedrig
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: binary_sensor.tibber_is_cheap
+          state: "on"
+        - condition: state
+          entity_id: binary_sensor.tibber_is_cheapest_hour
+          state: "on"
+    - condition: numeric_state
+      entity_id: sensor.byd_soc
+      below: 50
+  action:
+    # Nachtladen aktivieren
+    - service: notify.mobile_app
+      data:
+        message: >
+          🌙 Nachtladen gestartet
+          Preis: {{ states('sensor.tibber_current_price') }} EUR/kWh
+          SOC: {{ states('sensor.byd_soc') }}%

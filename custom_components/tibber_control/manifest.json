@@ -1,0 +1,11 @@
+{
+  "domain": "tibber_control",
+  "name": "Tibber Smart Control",
+  "codeowners": ["@misterboe"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/misterboe/tibber-extended",
+  "iot_class": "cloud_polling",
+  "requirements": ["requests>=2.32.0"],
+  "version": "1.0.0"
+}

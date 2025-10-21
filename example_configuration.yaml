@@ -1,0 +1,7 @@
+# Beispiel-Konfiguration für Tibber Smart Control
+# Kopiere diese Zeilen in deine configuration.yaml
+
+tibber_control:
+  - api_key: "YOUR_TIBBER_API_KEY_HERE"
+    # Optional: Falls du mehrere Häuser hast, gib die home_id an
+    # home_id: "YOUR_HOME_ID_HERE"
