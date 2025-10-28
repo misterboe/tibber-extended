@@ -1,0 +1,279 @@
+# ============================================================================
+# Tibber 3-Hour Window Automation Examples
+# ============================================================================
+# Der Sensor "binary_sensor.tibber_is_in_best_3h_window" ist TRUE während
+# der 3 günstigsten zusammenhängenden Stunden pro Tag.
+#
+# Dies ist ideal für:
+# - E-Auto laden
+# - Warmwasserspeicher aufheizen
+# - Waschmaschine/Trockner laufen lassen
+# - Poolpumpe betreiben
+# - Andere energieintensive Geräte
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Beispiel 1: E-Auto laden während billigstem 3h-Fenster
+# ----------------------------------------------------------------------------
+automation:
+  - alias: "Tesla Laden - Beste 3 Stunden"
+    description: "Startet Tesla-Laden während der 3 günstigsten zusammenhängenden Stunden"
+
+    trigger:
+      # Trigger wenn das 3h-Fenster beginnt
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        from: "off"
+        to: "on"
+
+    condition:
+      # Nur laden wenn Auto zuhause und Batterie unter 80%
+      - condition: state
+        entity_id: device_tracker.tesla
+        state: "home"
+      - condition: numeric_state
+        entity_id: sensor.tesla_battery_level
+        below: 80
+
+    action:
+      # Tesla-Laden starten
+      - service: switch.turn_on
+        target:
+          entity_id: switch.tesla_charger
+
+      # Benachrichtigung senden
+      - service: notify.mobile_app
+        data:
+          title: "🔌 Tesla Laden gestartet"
+          message: >
+            Laden während günstigstem 3h-Fenster.
+            Durchschnittspreis: {{ state_attr('binary_sensor.tibber_is_in_best_3h_window', 'window_average_price') }}€/kWh
+            Ersparnis: {{ state_attr('binary_sensor.tibber_is_in_best_3h_window', 'savings_percent') }}%
+
+  - alias: "Tesla Laden - Stoppen nach Fenster"
+    description: "Stoppt Tesla-Laden wenn 3h-Fenster endet"
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        from: "on"
+        to: "off"
+
+    action:
+      - service: switch.turn_off
+        target:
+          entity_id: switch.tesla_charger
+
+      - service: notify.mobile_app
+        data:
+          title: "⏸️ Tesla Laden gestoppt"
+          message: "3-Stunden-Fenster ist vorbei."
+
+# ----------------------------------------------------------------------------
+# Beispiel 2: Warmwasserspeicher aufheizen
+# ----------------------------------------------------------------------------
+automation:
+  - alias: "Warmwasser - Aufheizen billigstes 3h-Fenster"
+    description: "Heizt Warmwasserspeicher während günstigstem Zeitfenster auf"
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        to: "on"
+
+    condition:
+      # Nur wenn Wassertemperatur unter 55°C
+      - condition: numeric_state
+        entity_id: sensor.water_heater_temperature
+        below: 55
+
+    action:
+      # Heizung auf Maximum
+      - service: water_heater.set_temperature
+        target:
+          entity_id: water_heater.storage_tank
+        data:
+          temperature: 70
+
+      # Boost-Modus aktivieren
+      - service: switch.turn_on
+        target:
+          entity_id: switch.water_heater_boost
+
+  - alias: "Warmwasser - Boost deaktivieren"
+    description: "Deaktiviert Boost-Modus nach 3h-Fenster"
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        to: "off"
+
+    action:
+      - service: switch.turn_off
+        target:
+          entity_id: switch.water_heater_boost
+
+# ----------------------------------------------------------------------------
+# Beispiel 3: Poolpumpe laufen lassen
+# ----------------------------------------------------------------------------
+automation:
+  - alias: "Pool - Pumpe während günstigstem Fenster"
+    description: "Betreibt Poolpumpe 3h während billigstem Zeitfenster"
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        to: "on"
+
+    condition:
+      # Nur im Sommer (Mai-September)
+      - condition: template
+        value_template: "{{ now().month >= 5 and now().month <= 9 }}"
+
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.pool_pump
+
+      - service: notify.mobile_app
+        data:
+          title: "🏊 Poolpumpe gestartet"
+          message: "Läuft während günstigstem 3h-Fenster ({{ state_attr('binary_sensor.tibber_is_in_best_3h_window', 'savings_percent') }}% Ersparnis)"
+
+  - alias: "Pool - Pumpe stoppen"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        to: "off"
+
+    action:
+      - service: switch.turn_off
+        target:
+          entity_id: switch.pool_pump
+
+# ----------------------------------------------------------------------------
+# Beispiel 4: Waschmaschine/Trockner Benachrichtigung
+# ----------------------------------------------------------------------------
+automation:
+  - alias: "Haushalt - Beste Zeit für Waschmaschine"
+    description: "Benachrichtigt wenn beste 3h-Fenster für Waschmaschine beginnt"
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        to: "on"
+
+    condition:
+      # Nur zwischen 6 Uhr und 22 Uhr
+      - condition: time
+        after: "06:00:00"
+        before: "22:00:00"
+
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "💡 Günstige Strompreise jetzt!"
+          message: >
+            Die 3 günstigsten Stunden beginnen jetzt.
+            Perfekt für: Waschmaschine, Trockner, Geschirrspüler
+
+            Zeitfenster: {{ state_attr('binary_sensor.tibber_is_in_best_3h_window', 'window_hours') }}
+            Durchschnitt: {{ state_attr('binary_sensor.tibber_is_in_best_3h_window', 'window_average_price') }}€/kWh
+            Ersparnis: {{ state_attr('binary_sensor.tibber_is_in_best_3h_window', 'savings_percent') }}%
+
+# ----------------------------------------------------------------------------
+# Beispiel 5: Smart Home Szene während günstigem Fenster
+# ----------------------------------------------------------------------------
+automation:
+  - alias: "Smart Home - Energieintensive Szene"
+    description: "Aktiviert energieintensive Geräte während billigstem Fenster"
+
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        to: "on"
+
+    action:
+      # Tesla laden
+      - service: switch.turn_on
+        target:
+          entity_id: switch.tesla_charger
+
+      # Warmwasser aufheizen
+      - service: switch.turn_on
+        target:
+          entity_id: switch.water_heater_boost
+
+      # Poolpumpe starten (wenn Sommer)
+      - service: switch.turn_on
+        target:
+          entity_id: switch.pool_pump
+        conditions:
+          - condition: template
+            value_template: "{{ now().month >= 5 and now().month <= 9 }}"
+
+      # Klimaanlage vorkühlen
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.living_room
+        data:
+          temperature: 20
+
+      - service: notify.mobile_app
+        data:
+          title: "⚡ Energieintensive Szene aktiviert"
+          message: "Alle Geräte nutzen das günstigste 3h-Fenster"
+
+  - alias: "Smart Home - Energieintensive Szene beenden"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_in_best_3h_window
+        to: "off"
+
+    action:
+      # Alle energieintensiven Geräte deaktivieren
+      - service: switch.turn_off
+        target:
+          entity_id:
+            - switch.tesla_charger
+            - switch.water_heater_boost
+            - switch.pool_pump
+
+# ============================================================================
+# Verfügbare Sensor-Attribute
+# ============================================================================
+#
+# Der Sensor binary_sensor.tibber_is_in_best_3h_window hat folgende Attribute:
+#
+# - window_start: Startzeit des Fensters (ISO Format)
+# - window_end: Endzeit des Fensters (ISO Format)
+# - window_average_price: Durchschnittspreis im Fenster (€/kWh)
+# - daily_average_price: Tagesdurchschnitt (€/kWh)
+# - savings_per_kwh: Ersparnis pro kWh vs. Durchschnitt (€)
+# - savings_percent: Prozentuale Ersparnis (%)
+# - window_hours: Liste der 3 Stunden mit Preisen
+# - window_duration: "3 hours"
+#
+# Zugriff via Template:
+# {{ state_attr('binary_sensor.tibber_is_in_best_3h_window', 'window_average_price') }}
+# ============================================================================
+
+# ============================================================================
+# Tipps für optimale Nutzung
+# ============================================================================
+#
+# 1. **Kombiniere mehrere Geräte**
+#    Nutze das 3h-Fenster für ALLE energieintensiven Geräte gleichzeitig
+#
+# 2. **Priorisiere notwendige Lasten**
+#    Tesla muss geladen werden? Nutze das Fenster dafür
+#
+# 3. **Plane voraus**
+#    Schaue morgens wann das beste Fenster ist und plane den Tag
+#
+# 4. **Nutze die Attribute**
+#    Zeige die Ersparnis an um zu motivieren
+#
+# 5. **Teste die Automation**
+#    Aktiviere zunächst nur Benachrichtigungen, dann Geräte
+# ============================================================================

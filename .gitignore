@@ -38,3 +38,8 @@ wheels/
 
 # Personal API Keys (falls jemand die config kopiert)
 secrets.yaml
+.env
+*.env
+.env.local
+.env.*.local
+.claude/settings.local.json

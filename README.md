@@ -1,4 +1,4 @@
-# Tibber Smart Control für Home Assistant
+# Tibber Extended für Home Assistant
 
 Home Assistant Custom Component für intelligente Strompreissteuerung mit Tibber.
 
@@ -14,10 +14,10 @@ Home Assistant Custom Component für intelligente Strompreissteuerung mit Tibber
 
 ### Schritt 1: Custom Component kopieren
 
-Kopiere den `custom_components/tibber_control` Ordner in dein Home Assistant `config` Verzeichnis:
+Kopiere den `custom_components/tibber_extended` Ordner in dein Home Assistant `config` Verzeichnis:
 
 ```
-/config/custom_components/tibber_control/
+/config/custom_components/tibber_extended/
 ```
 
 ### Schritt 2: Konfiguration
@@ -25,7 +25,7 @@ Kopiere den `custom_components/tibber_control` Ordner in dein Home Assistant `co
 Füge folgendes in deine `configuration.yaml` ein:
 
 ```yaml
-tibber_control:
+tibber_extended:
   - api_key: "YOUR_TIBBER_API_KEY_HERE"
     # Optional: home_id (wenn du mehrere Häuser hast)
     # home_id: "YOUR_HOME_ID_HERE"
@@ -249,7 +249,7 @@ Die Integration holt alle **5 Minuten** neue Daten von der Tibber API.
 ### Integration lädt nicht
 
 1. Prüfe die Logs: `Settings -> System -> Logs`
-2. Suche nach Fehlern mit "tibber_control"
+2. Suche nach Fehlern mit "tibber_extended"
 3. Stelle sicher, dass der API Key korrekt ist
 
 ### Sensoren zeigen "unavailable"

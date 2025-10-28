@@ -1,0 +1,1 @@
+{"query":"{ viewer { homes { id appNickname currentSubscription { priceInfo { current { total energy tax startsAt level } } } } } }"}
