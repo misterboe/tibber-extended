@@ -513,15 +513,16 @@ class TibberBatteryChargingRecommendedSensor(TibberBinarySensorBase):
 
         current_price = self._home_data["current"]["total"]
         battery_efficiency = self._home_data.get("battery_efficiency", 0)
-        effective_cost = self._home_data.get("battery_effective_charging_cost", 0)
-        reference_price = self._home_data.get("battery_reference_price", 0)
-        savings = round(reference_price - effective_cost, 4)
+        breakeven_price = self._home_data.get("battery_breakeven_price", 0)
+        average_price = self._home_data.get("average_price", 0)
+        cheapest_hours = self._home_data.get("cheapest_hours", [])
 
         return {
             "current_price": current_price,
             "battery_efficiency": battery_efficiency,
-            "effective_charging_cost": effective_cost,
-            "reference_price": reference_price,
-            "savings_per_kwh": savings,
-            "efficiency_loss_per_kwh": round(effective_cost - current_price, 4),
+            "breakeven_price": breakeven_price,
+            "average_price": average_price,
+            "is_below_breakeven": current_price <= breakeven_price,
+            "difference_to_breakeven": round(breakeven_price - current_price, 4),
+            "cheapest_hours_today": len(cheapest_hours),
         }

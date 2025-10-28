@@ -172,16 +172,17 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                 # Battery charging optimization
                 current_price_val = price_info["current"]["total"]
                 battery_efficiency_decimal = self.battery_efficiency / 100
-                effective_cost = (
-                    current_price_val / battery_efficiency_decimal
+
+                # Calculate breakeven price: the maximum price at which charging is economical
+                # Formula: average_price * efficiency (accounting for losses)
+                breakeven_price = (
+                    avg_price * battery_efficiency_decimal
                     if battery_efficiency_decimal > 0
-                    else current_price_val
+                    else avg_price
                 )
 
-                # Use avg_price (today's average) as reference price
-                reference_price = avg_price
-
-                battery_is_economical = effective_cost < reference_price
+                # Check if current price is below breakeven (economical to charge)
+                battery_is_economical = current_price_val <= breakeven_price
 
                 all_homes_data[home_id] = {
                     "home": home_info,
@@ -204,8 +205,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     "best_3h_window": best_3h_window,
                     # Battery charging fields
                     "battery_efficiency": self.battery_efficiency,
-                    "battery_effective_charging_cost": round(effective_cost, 4),
-                    "battery_reference_price": round(reference_price, 4),
+                    "battery_breakeven_price": round(breakeven_price, 4),
                     "battery_is_economical": battery_is_economical,
                 }
 

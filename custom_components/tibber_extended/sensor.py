@@ -50,7 +50,7 @@ async def async_setup_entry(
                 TibberPriceDeviationPercentSensor(coordinator, home_id),
                 TibberPriceDeviationAbsoluteSensor(coordinator, home_id),
                 # Battery Charging Optimization
-                TibberBatteryEffectiveChargingCostSensor(coordinator, home_id),
+                TibberBatteryBreakevenPriceSensor(coordinator, home_id),
             ])
 
     async_add_entities(entities)
@@ -406,8 +406,8 @@ class TibberPriceDeviationAbsoluteSensor(TibberSensorBase):
         return "mdi:equal"
 
 
-class TibberBatteryEffectiveChargingCostSensor(TibberSensorBase):
-    """Sensor for effective battery charging cost (accounting for efficiency)."""
+class TibberBatteryBreakevenPriceSensor(TibberSensorBase):
+    """Sensor showing the maximum price at which battery charging is economical."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -417,14 +417,14 @@ class TibberBatteryEffectiveChargingCostSensor(TibberSensorBase):
         self, coordinator: TibberDataUpdateCoordinator, home_id: str
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "battery_effective_charging_cost")
-        self._attr_name = "Battery Effective Charging Cost"
+        super().__init__(coordinator, home_id, "battery_breakeven_price")
+        self._attr_name = "Battery Breakeven Price"
 
     @property
     def native_value(self) -> float | None:
-        """Return effective charging cost after efficiency loss."""
+        """Return breakeven price for economical charging."""
         if self._home_data:
-            return self._home_data.get("battery_effective_charging_cost")
+            return self._home_data.get("battery_breakeven_price")
         return None
 
     @property
@@ -433,21 +433,28 @@ class TibberBatteryEffectiveChargingCostSensor(TibberSensorBase):
         if not self._home_data:
             return {}
 
-        reference_price = self._home_data.get("battery_reference_price", 0)
-        effective_cost = self._home_data.get("battery_effective_charging_cost", 0)
-        savings = round(reference_price - effective_cost, 4)
+        current_price = self._home_data["current"]["total"]
+        breakeven = self._home_data.get("battery_breakeven_price", 0)
+        average_price = self._home_data.get("average_price", 0)
+        is_below_breakeven = current_price <= breakeven
 
         return {
-            "current_price": self._home_data["current"]["total"],
+            "current_price": current_price,
+            "average_price": average_price,
             "battery_efficiency": self._home_data.get("battery_efficiency"),
-            "reference_price": reference_price,
-            "is_economical": self._home_data.get("battery_is_economical"),
-            "savings_per_kwh": savings,
+            "is_below_breakeven": is_below_breakeven,
+            "difference_to_breakeven": round(breakeven - current_price, 4),
         }
 
     @property
     def icon(self) -> str:
-        """Return icon based on economical status."""
-        if self._home_data and self._home_data.get("battery_is_economical"):
+        """Return icon based on whether current price is below breakeven."""
+        if not self._home_data:
+            return "mdi:battery-charging-outline"
+
+        current_price = self._home_data["current"]["total"]
+        breakeven = self._home_data.get("battery_breakeven_price", 0)
+
+        if current_price <= breakeven:
             return "mdi:battery-charging-100"
-        return "mdi:battery-charging-outline"
+        return "mdi:battery-alert"
