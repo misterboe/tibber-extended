@@ -49,9 +49,6 @@ async def async_setup_entry(
                 # Architecture v2.0 - Deviation Sensors
                 TibberPriceDeviationPercentSensor(coordinator, home_id),
                 TibberPriceDeviationAbsoluteSensor(coordinator, home_id),
-                # Architecture v2.0 - Rank Sensors
-                TibberCurrentPriceRankSensor(coordinator, home_id),
-                TibberCurrentPricePercentileSensor(coordinator, home_id),
                 # Battery Charging Optimization
                 TibberBatteryEffectiveChargingCostSensor(coordinator, home_id),
             ])
@@ -407,89 +404,6 @@ class TibberPriceDeviationAbsoluteSensor(TibberSensorBase):
         if value > 0:
             return "mdi:arrow-up-bold-circle"
         return "mdi:equal"
-
-
-class TibberCurrentPriceRankSensor(TibberSensorBase):
-    """Sensor showing rank of current price (1 = cheapest)."""
-
-    _attr_state_class = SensorStateClass.MEASUREMENT
-
-    def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "current_price_rank")
-
-    @property
-    def native_value(self) -> int | None:
-        """Return rank of current price."""
-        if self._home_data:
-            return self._home_data.get("rank")
-        return None
-
-    @property
-    def icon(self) -> str:
-        """Return icon based on rank."""
-        rank = self.native_value
-        if rank is None:
-            return "mdi:sort-numeric-variant"
-        if rank <= 6:  # Top 25%
-            return "mdi:star"
-        if rank >= 19:  # Bottom 25%
-            return "mdi:alert"
-        return "mdi:sort-numeric-variant"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return additional attributes."""
-        if not self._home_data:
-            return {}
-
-        total_hours = len(self._home_data.get("today", []))
-        return {
-            "current_price": self._home_data["current"]["total"],
-            "total_hours": total_hours,
-            "percentile": self._home_data.get("percentile"),
-        }
-
-
-class TibberCurrentPricePercentileSensor(TibberSensorBase):
-    """Sensor showing percentile of current price (lower = cheaper)."""
-
-    _attr_native_unit_of_measurement = "%"
-    _attr_state_class = SensorStateClass.MEASUREMENT
-
-    def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "current_price_percentile")
-
-    @property
-    def native_value(self) -> float | None:
-        """Return percentile of current price."""
-        if self._home_data:
-            return self._home_data.get("percentile")
-        return None
-
-    @property
-    def icon(self) -> str:
-        """Return icon based on percentile."""
-        percentile = self.native_value
-        if percentile is None:
-            return "mdi:percent"
-        if percentile <= 25:
-            return "mdi:speedometer-slow"
-        if percentile >= 75:
-            return "mdi:speedometer"
-        return "mdi:speedometer-medium"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return additional attributes."""
-        if not self._home_data:
-            return {}
-
-        return {
-            "current_price": self._home_data["current"]["total"],
-            "rank": self._home_data.get("rank"),
-        }
 
 
 class TibberBatteryEffectiveChargingCostSensor(TibberSensorBase):

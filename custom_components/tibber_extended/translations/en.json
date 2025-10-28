@@ -1,0 +1,87 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tibber Extended Setup",
+        "description": "Please enter your Tibber API key. You can find it in the Tibber app under Settings > Developer.",
+        "data": {
+          "api_key": "Tibber API Key",
+          "battery_efficiency": "Battery Efficiency (%)"
+        },
+        "data_description": {
+          "api_key": "Your personal Tibber API token",
+          "battery_efficiency": "Charge/discharge efficiency of your battery (default: 75%)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Tibber API. Please check your internet connection.",
+      "invalid_auth": "Invalid API key. Please check your Tibber API token.",
+      "no_homes": "No homes found in your Tibber account.",
+      "unknown": "An unknown error occurred."
+    },
+    "abort": {
+      "already_configured": "This Tibber API key is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tibber Extended Options",
+        "description": "Manage your Tibber Extended settings",
+        "menu_options": {
+          "battery_settings": "Battery Settings",
+          "add_window": "Add Time Window",
+          "remove_window": "Remove Time Window",
+          "list_windows": "Show Time Windows"
+        }
+      },
+      "battery_settings": {
+        "title": "Battery Settings",
+        "description": "Configure battery efficiency for cost calculations.\n\nCurrent: {current_efficiency}",
+        "data": {
+          "battery_efficiency": "Battery Efficiency (%)"
+        },
+        "data_description": {
+          "battery_efficiency": "Total efficiency for charging/discharging (e.g. 80% = 20% loss)"
+        }
+      },
+      "add_window": {
+        "title": "Add Time Window",
+        "description": "Create a new optimized time window for cost-effective energy consumption.\n\nThe system automatically finds the cheapest consecutive hours.",
+        "data": {
+          "name": "Time Window Name",
+          "duration": "Duration (hours)",
+          "power_kw": "Power (kW, optional)"
+        },
+        "data_description": {
+          "name": "Custom name (e.g. 'tesla_charging', '3h_cheap')",
+          "duration": "Required number of hours (0.5 to 24 hours)",
+          "power_kw": "Average power for cost calculation (optional)"
+        }
+      },
+      "remove_window": {
+        "title": "Remove Time Window",
+        "description": "Select a time window to delete.",
+        "data": {
+          "window_name": "Time Window"
+        },
+        "data_description": {
+          "window_name": "The time window to remove"
+        }
+      },
+      "list_windows": {
+        "title": "Configured Time Windows",
+        "description": "{windows_info}"
+      }
+    },
+    "error": {
+      "invalid_name": "Invalid name. Use only letters, numbers, underscores and hyphens.",
+      "already_exists": "A time window with this name already exists."
+    },
+    "abort": {
+      "no_window_manager": "Window manager not available. Please reload the integration.",
+      "no_windows": "No time windows configured."
+    }
+  }
+}

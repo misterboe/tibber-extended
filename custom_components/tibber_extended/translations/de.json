@@ -1,0 +1,87 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tibber Extended Setup",
+        "description": "Bitte gib deinen Tibber API-Schlüssel ein. Du findest ihn in der Tibber App unter Einstellungen > Entwickler.",
+        "data": {
+          "api_key": "Tibber API-Schlüssel",
+          "battery_efficiency": "Batterie-Effizienz (%)"
+        },
+        "data_description": {
+          "api_key": "Dein persönlicher Tibber API Token",
+          "battery_efficiency": "Lade-/Entlade-Effizienz deiner Batterie (Standard: 75%)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur Tibber API fehlgeschlagen. Bitte überprüfe deine Internetverbindung.",
+      "invalid_auth": "Ungültiger API-Schlüssel. Bitte überprüfe deinen Tibber API Token.",
+      "no_homes": "Keine Häuser in deinem Tibber-Konto gefunden.",
+      "unknown": "Ein unbekannter Fehler ist aufgetreten."
+    },
+    "abort": {
+      "already_configured": "Dieser Tibber API-Schlüssel ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Tibber Extended Optionen",
+        "description": "Verwalte deine Tibber Extended Einstellungen",
+        "menu_options": {
+          "battery_settings": "Batterie-Einstellungen",
+          "add_window": "Zeitfenster hinzufügen",
+          "remove_window": "Zeitfenster entfernen",
+          "list_windows": "Zeitfenster anzeigen"
+        }
+      },
+      "battery_settings": {
+        "title": "Batterie-Einstellungen",
+        "description": "Konfiguriere die Batterie-Effizienz für Kostenberechnungen.\n\nAktuell: {current_efficiency}",
+        "data": {
+          "battery_efficiency": "Batterie-Effizienz (%)"
+        },
+        "data_description": {
+          "battery_efficiency": "Gesamteffizienz beim Laden/Entladen (z.B. 80% = 20% Verlust)"
+        }
+      },
+      "add_window": {
+        "title": "Zeitfenster hinzufügen",
+        "description": "Erstelle ein neues optimiertes Zeitfenster für kostengünstigen Energieverbrauch.\n\nDas System findet automatisch die günstigsten zusammenhängenden Stunden.",
+        "data": {
+          "name": "Name des Zeitfensters",
+          "duration": "Dauer (Stunden)",
+          "power_kw": "Leistung (kW, optional)"
+        },
+        "data_description": {
+          "name": "Frei wählbarer Name (z.B. 'tesla_laden', '3h_billig')",
+          "duration": "Benötigte Stundenzahl (0.5 bis 24 Stunden)",
+          "power_kw": "Durchschnittliche Leistung für Kostenberechnung (optional)"
+        }
+      },
+      "remove_window": {
+        "title": "Zeitfenster entfernen",
+        "description": "Wähle ein Zeitfenster zum Löschen aus.",
+        "data": {
+          "window_name": "Zeitfenster"
+        },
+        "data_description": {
+          "window_name": "Das zu entfernende Zeitfenster"
+        }
+      },
+      "list_windows": {
+        "title": "Konfigurierte Zeitfenster",
+        "description": "{windows_info}"
+      }
+    },
+    "error": {
+      "invalid_name": "Ungültiger Name. Verwende nur Buchstaben, Zahlen, Unterstriche und Bindestriche.",
+      "already_exists": "Ein Zeitfenster mit diesem Namen existiert bereits."
+    },
+    "abort": {
+      "no_window_manager": "Window Manager nicht verfügbar. Bitte lade die Integration neu.",
+      "no_windows": "Keine Zeitfenster konfiguriert."
+    }
+  }
+}

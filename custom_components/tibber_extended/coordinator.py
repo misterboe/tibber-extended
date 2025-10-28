@@ -83,11 +83,19 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             )
 
             if not response or "data" not in response:
+                # Keep last valid data on API errors
+                if self.data:
+                    _LOGGER.warning("Invalid response from Tibber API, keeping last valid data")
+                    return self.data
                 raise UpdateFailed("Invalid response from Tibber API")
 
             homes = response["data"]["viewer"]["homes"]
 
             if not homes:
+                # Keep last valid data if no homes found
+                if self.data:
+                    _LOGGER.warning("No homes found in Tibber API response, keeping last valid data")
+                    return self.data
                 raise UpdateFailed("No homes found in Tibber account")
 
             # Process ALL homes
@@ -206,10 +214,22 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         except requests.exceptions.HTTPError as err:
             if err.response.status_code in (401, 403):
                 raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
+            # Keep last valid data on HTTP errors
+            if self.data:
+                _LOGGER.warning(f"HTTP error from Tibber API: {err}, keeping last valid data")
+                return self.data
             raise UpdateFailed(f"HTTP error from Tibber API: {err}") from err
         except requests.RequestException as err:
+            # Keep last valid data on connection errors (timeout, network issues)
+            if self.data:
+                _LOGGER.warning(f"Error communicating with Tibber API: {err}, keeping last valid data")
+                return self.data
             raise UpdateFailed(f"Error communicating with Tibber API: {err}") from err
         except (KeyError, ValueError) as err:
+            # Keep last valid data on parsing errors
+            if self.data:
+                _LOGGER.warning(f"Error parsing Tibber data: {err}, keeping last valid data")
+                return self.data
             raise UpdateFailed(f"Error parsing Tibber data: {err}") from err
 
     def _fetch_data(self) -> dict[str, Any]:
