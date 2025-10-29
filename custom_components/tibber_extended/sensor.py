@@ -202,7 +202,7 @@ class TibberPriceLevelSensor(TibberSensorBase):
 
 
 class TibberCheapestHoursSensor(TibberSensorBase):
-    """Sensor showing the 3 cheapest hours today."""
+    """Sensor showing the cheapest hours today (configurable duration)."""
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
         """Initialize the sensor."""
@@ -240,7 +240,7 @@ class TibberCheapestHoursSensor(TibberSensorBase):
 
 
 class TibberMostExpensiveHoursSensor(TibberSensorBase):
-    """Sensor showing the 3 most expensive hours today."""
+    """Sensor showing the most expensive hours today (configurable duration)."""
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
         """Initialize the sensor."""

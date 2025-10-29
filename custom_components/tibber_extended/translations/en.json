@@ -31,7 +31,7 @@
         "description": "Manage your Tibber Extended settings",
         "menu_options": {
           "battery_settings": "Battery Settings",
-          "hours_duration": "Number of Consecutive Hours"
+          "hours_duration": "Hours Duration"
         }
       },
       "battery_settings": {
@@ -45,13 +45,13 @@
         }
       },
       "hours_duration": {
-        "title": "Number of Consecutive Hours",
-        "description": "Configure the number of consecutive hours for calculating cheapest/most expensive time windows.\n\nCurrent: {current_duration}",
+        "title": "Hours Duration",
+        "description": "Configure hours duration for calculations (cheapest/most expensive hours and best consecutive time window).\n\nCurrent: {current_duration}h",
         "data": {
           "hours_duration": "Number of Hours"
         },
         "data_description": {
-          "hours_duration": "Required number of hours (1 to 24 hours, default: 3h)"
+          "hours_duration": "Hours duration for calculations (1 to 24, default: 3)"
         }
       }
     },

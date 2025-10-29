@@ -127,8 +127,9 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     key=lambda x: x["total"]
                 )
 
-                cheapest_hours = sorted_today[:3] if len(sorted_today) >= 3 else sorted_today
-                expensive_hours = sorted_today[-3:] if len(sorted_today) >= 3 else sorted_today
+                n = int(self.hours_duration)
+                cheapest_hours = sorted_today[:n] if len(sorted_today) >= n else sorted_today
+                expensive_hours = sorted_today[-n:] if len(sorted_today) >= n else sorted_today
 
                 # Calculate deviation from average
                 deviation_absolute = current_price - avg_price

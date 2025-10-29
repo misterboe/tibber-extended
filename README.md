@@ -52,7 +52,7 @@ Smart energy price control with Tibber - optimized for automation and battery ma
 After installation, click **"Configure"** to access:
 
 - **Battery Efficiency** - Set charge/discharge efficiency (1-100%, default: 75%)
-- **Hours Duration** - Number of consecutive hours for best/worst windows (1-24h, default: 3h)
+- **Hours Duration** - Number of hours for cheapest/most expensive hours and best consecutive window (1-24h, default: 3h)
 
 ## Available Sensors
 
@@ -65,8 +65,8 @@ After installation, click **"Configure"** to access:
 | `sensor.tibber_min_price` | Lowest price today | EUR/kWh |
 | `sensor.tibber_max_price` | Highest price today | EUR/kWh |
 | `sensor.tibber_price_level` | Current price level | VERY_CHEAP / CHEAP / NORMAL / EXPENSIVE / VERY_EXPENSIVE |
-| `sensor.tibber_cheapest_hours` | Top 3 cheapest hours | Text |
-| `sensor.tibber_most_expensive_hours` | Top 3 most expensive hours | Text |
+| `sensor.tibber_cheapest_hours` | Cheapest hours (configurable count) | Text |
+| `sensor.tibber_most_expensive_hours` | Most expensive hours (configurable count) | Text |
 | `sensor.tibber_best_consecutive_hours` | Best consecutive hours window | Text (configurable duration) |
 | `sensor.tibber_price_deviation_percent` | Deviation from average | % |
 | `sensor.tibber_price_deviation_absolute` | Absolute deviation | EUR/kWh |
@@ -89,9 +89,9 @@ After installation, click **"Configure"** to access:
 | `binary_sensor.tibber_is_cheap` | Price is CHEAP or VERY_CHEAP | Good charging time |
 | `binary_sensor.tibber_is_expensive` | Price is EXPENSIVE or VERY_EXPENSIVE | Avoid charging |
 | `binary_sensor.tibber_is_very_expensive` | Price is VERY_EXPENSIVE | Definitely avoid! |
-| `binary_sensor.tibber_is_cheapest_hour` | In top 3 cheapest hours | Smart scheduling |
-| `binary_sensor.tibber_is_most_expensive_hour` | In top 3 most expensive | Battery discharge |
-| `binary_sensor.tibber_is_good_charging_time` | CHEAP or top 3 | **Main charging trigger** |
+| `binary_sensor.tibber_is_cheapest_hour` | In cheapest hours (configurable) | Smart scheduling |
+| `binary_sensor.tibber_is_most_expensive_hour` | In most expensive hours (configurable) | Battery discharge |
+| `binary_sensor.tibber_is_good_charging_time` | CHEAP or in cheapest hours | **Main charging trigger** |
 | `binary_sensor.tibber_is_below_average` | Below average price | Cost-effective |
 | `binary_sensor.tibber_is_in_best_consecutive_hours` | In best consecutive window | Optimal window |
 | `binary_sensor.tibber_battery_charging_recommended` | Below breakeven price | Battery charging |
@@ -252,7 +252,7 @@ Tibber API automatically calculates price levels based on daily average:
 |-----------|------|---------|-------------|
 | `api_key` | string | *required* | Your Tibber API token |
 | `battery_efficiency` | int | 75 | Battery efficiency percentage (1-100%) |
-| `hours_duration` | int | 3 | Consecutive hours for best/worst windows (1-24h) |
+| `hours_duration` | int | 3 | Hours duration for cheapest/expensive hours and consecutive window (1-24h) |
 
 ## Troubleshooting
 

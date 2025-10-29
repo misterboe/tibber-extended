@@ -31,7 +31,7 @@
         "description": "Verwalte deine Tibber Extended Einstellungen",
         "menu_options": {
           "battery_settings": "Batterie-Einstellungen",
-          "hours_duration": "Anzahl zusammenhängender Stunden"
+          "hours_duration": "Stundenanzahl"
         }
       },
       "battery_settings": {
@@ -45,13 +45,13 @@
         }
       },
       "hours_duration": {
-        "title": "Anzahl zusammenhängender Stunden",
-        "description": "Konfiguriere die Anzahl zusammenhängender Stunden für die Berechnung der günstigsten/teuersten Zeitfenster.\n\nAktuell: {current_duration}",
+        "title": "Stundenanzahl",
+        "description": "Konfiguriere die Stundenanzahl für Berechnungen (günstigste/teuerste Stunden und beste zusammenhängende Zeitfenster).\n\nAktuell: {current_duration}h",
         "data": {
           "hours_duration": "Anzahl Stunden"
         },
         "data_description": {
-          "hours_duration": "Benötigte Stundenanzahl (1 bis 24 Stunden, Standard: 3h)"
+          "hours_duration": "Stundenanzahl für Berechnungen (1 bis 24, Standard: 3)"
         }
       }
     },
