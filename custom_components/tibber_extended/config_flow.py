@@ -11,6 +11,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import selector
 
 from .const import (
     CONF_API_KEY,
@@ -104,6 +105,9 @@ class TibberConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title="Tibber Extended",
                     data=user_input,
+                    options={
+                        CONF_HOURS_DURATION: DEFAULT_HOURS_DURATION,
+                    },
                 )
 
             except CannotConnect:
@@ -172,11 +176,15 @@ class TibberOptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Required(
                         CONF_HOURS_DURATION, default=int(current_duration)
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=1, max=24, mode=selector.NumberSelectorMode.BOX
+                        )
+                    ),
                 }
             ),
             description_placeholders={
-                "current_duration": f"{int(current_duration)}h",
+                "current_duration": f"{int(current_duration)}",
             },
         )
 
