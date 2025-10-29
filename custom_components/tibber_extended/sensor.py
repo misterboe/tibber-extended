@@ -44,8 +44,8 @@ async def async_setup_entry(
                 TibberPriceLevelSensor(coordinator, home_id),
                 TibberCheapestHoursSensor(coordinator, home_id),
                 TibberMostExpensiveHoursSensor(coordinator, home_id),
-                # Best 3 consecutive hours
-                TibberBest3HoursSensor(coordinator, home_id),
+                # Best consecutive hours (configurable duration)
+                TibberBestConsecutiveHoursSensor(coordinator, home_id),
                 # Architecture v2.0 - Deviation Sensors
                 TibberPriceDeviationPercentSensor(coordinator, home_id),
                 TibberPriceDeviationAbsoluteSensor(coordinator, home_id),
@@ -279,20 +279,20 @@ class TibberMostExpensiveHoursSensor(TibberSensorBase):
         return "mdi:alert-octagon"
 
 
-class TibberBest3HoursSensor(TibberSensorBase):
-    """Sensor showing the best 3 consecutive hours (cheapest window)."""
+class TibberBestConsecutiveHoursSensor(TibberSensorBase):
+    """Sensor showing the best consecutive hours (cheapest window with configurable duration)."""
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "best_3_hours")
+        super().__init__(coordinator, home_id, "best_consecutive_hours")
 
     @property
     def native_value(self) -> str | None:
-        """Return best 3 consecutive hours as readable string."""
-        if not self._home_data or not self._home_data.get("best_3h_window"):
+        """Return best consecutive hours as readable string."""
+        if not self._home_data or not self._home_data.get("best_consecutive_hours"):
             return None
 
-        window = self._home_data["best_3h_window"]
+        window = self._home_data["best_consecutive_hours"]
         hours = window.get("hours", [])
 
         if not hours:
@@ -302,8 +302,9 @@ class TibberBest3HoursSensor(TibberSensorBase):
         start_time = hours[0]["start"].split("T")[1][:5]
         end_time = hours[-1]["start"].split("T")[1][:5]
         avg_price = window.get("average_price", 0)
+        duration = int(self.coordinator.hours_duration)
 
-        return f"{start_time}-{end_time} (Ø {avg_price:.4f}€)"
+        return f"{start_time}-{end_time} ({duration}h, Ø {avg_price:.4f}€)"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -311,15 +312,16 @@ class TibberBest3HoursSensor(TibberSensorBase):
         if not self._home_data:
             return {}
 
-        window = self._home_data.get("best_3h_window")
+        window = self._home_data.get("best_consecutive_hours")
         if not window:
             return {"status": "No window data available"}
 
         return {
-            "best_3_hours": window.get("hours", []),
+            "best_consecutive_hours": window.get("hours", []),
             "window_start": window.get("window_start"),
             "window_end": window.get("window_end"),
             "average_price": window.get("average_price"),
+            "duration_hours": int(self.coordinator.hours_duration),
         }
 
     @property

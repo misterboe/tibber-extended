@@ -11,7 +11,6 @@ from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN
 from .coordinator import TibberDataUpdateCoordinator
-from .time_window import TimeWindowManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,20 +25,6 @@ SERVICE_CALCULATE_BEST_TIME_WINDOW_SCHEMA = vol.Schema(
     }
 )
 
-SERVICE_ADD_TIME_WINDOW_SCHEMA = vol.Schema(
-    {
-        vol.Required("name"): cv.string,
-        vol.Required("duration"): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=24.0)),
-        vol.Optional("power_kw"): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=50.0)),
-    }
-)
-
-SERVICE_REMOVE_TIME_WINDOW_SCHEMA = vol.Schema(
-    {
-        vol.Required("name"): cv.string,
-    }
-)
-
 SERVICE_GET_PRICE_FORECAST_SCHEMA = vol.Schema(
     {
         vol.Optional("hours_ahead"): vol.All(vol.Coerce(int), vol.Range(min=1, max=48)),
@@ -50,7 +35,6 @@ SERVICE_GET_PRICE_FORECAST_SCHEMA = vol.Schema(
 async def async_setup_services(
     hass: HomeAssistant,
     coordinator: TibberDataUpdateCoordinator,
-    window_manager: TimeWindowManager,
 ) -> None:
     """Set up services for Tibber Extended."""
 
@@ -134,51 +118,6 @@ async def async_setup_services(
             "price_breakdown": price_breakdown,
         }
 
-    async def add_time_window(call: ServiceCall) -> ServiceResponse:
-        """Service to add a time window."""
-        name = call.data["name"].strip().lower().replace(" ", "_")
-        duration = call.data["duration"]
-        power_kw = call.data.get("power_kw")
-
-        success = await window_manager.add_window(
-            name=name,
-            duration=duration,
-            power_kw=power_kw,
-        )
-
-        if success:
-            return {
-                "success": True,
-                "message": f"Time window '{name}' added successfully",
-                "window": {
-                    "name": name,
-                    "duration_hours": duration,
-                    "power_kw": power_kw,
-                },
-            }
-        else:
-            return {
-                "success": False,
-                "error": f"Window '{name}' already exists or invalid name",
-            }
-
-    async def remove_time_window(call: ServiceCall) -> ServiceResponse:
-        """Service to remove a time window."""
-        name = call.data["name"]
-
-        success = await window_manager.remove_window(name)
-
-        if success:
-            return {
-                "success": True,
-                "message": f"Time window '{name}' removed successfully",
-            }
-        else:
-            return {
-                "success": False,
-                "error": f"Window '{name}' does not exist",
-            }
-
     async def get_price_forecast(call: ServiceCall) -> ServiceResponse:
         """Service to get price forecast."""
         hours_ahead = call.data.get("hours_ahead")
@@ -237,22 +176,6 @@ async def async_setup_services(
         "calculate_best_time_window",
         calculate_best_time_window,
         schema=SERVICE_CALCULATE_BEST_TIME_WINDOW_SCHEMA,
-        supports_response=SupportsResponse.ONLY,
-    )
-
-    hass.services.async_register(
-        DOMAIN,
-        "add_time_window",
-        add_time_window,
-        schema=SERVICE_ADD_TIME_WINDOW_SCHEMA,
-        supports_response=SupportsResponse.ONLY,
-    )
-
-    hass.services.async_register(
-        DOMAIN,
-        "remove_time_window",
-        remove_time_window,
-        schema=SERVICE_REMOVE_TIME_WINDOW_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
 

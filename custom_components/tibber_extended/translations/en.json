@@ -31,9 +31,7 @@
         "description": "Manage your Tibber Extended settings",
         "menu_options": {
           "battery_settings": "Battery Settings",
-          "add_window": "Add Time Window",
-          "remove_window": "Remove Time Window",
-          "list_windows": "Show Time Windows"
+          "hours_duration": "Number of Consecutive Hours"
         }
       },
       "battery_settings": {
@@ -46,42 +44,18 @@
           "battery_efficiency": "Total efficiency for charging/discharging (e.g. 80% = 20% loss)"
         }
       },
-      "add_window": {
-        "title": "Add Time Window",
-        "description": "Create a new optimized time window for cost-effective energy consumption.\n\nThe system automatically finds the cheapest consecutive hours.",
+      "hours_duration": {
+        "title": "Number of Consecutive Hours",
+        "description": "Configure the number of consecutive hours for calculating cheapest/most expensive time windows.\n\nCurrent: {current_duration}",
         "data": {
-          "name": "Time Window Name",
-          "duration": "Duration (hours)",
-          "power_kw": "Power (kW, optional)"
+          "hours_duration": "Number of Hours"
         },
         "data_description": {
-          "name": "Custom name (e.g. 'tesla_charging', '3h_cheap')",
-          "duration": "Required number of hours (0.5 to 24 hours)",
-          "power_kw": "Average power for cost calculation (optional)"
+          "hours_duration": "Required number of hours (1 to 24 hours, default: 3h)"
         }
-      },
-      "remove_window": {
-        "title": "Remove Time Window",
-        "description": "Select a time window to delete.",
-        "data": {
-          "window_name": "Time Window"
-        },
-        "data_description": {
-          "window_name": "The time window to remove"
-        }
-      },
-      "list_windows": {
-        "title": "Configured Time Windows",
-        "description": "{windows_info}"
       }
     },
-    "error": {
-      "invalid_name": "Invalid name. Use only letters, numbers, underscores and hyphens.",
-      "already_exists": "A time window with this name already exists."
-    },
-    "abort": {
-      "no_window_manager": "Window manager not available. Please reload the integration.",
-      "no_windows": "No time windows configured."
-    }
+    "error": {},
+    "abort": {}
   }
 }

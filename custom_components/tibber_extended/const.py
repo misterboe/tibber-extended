@@ -11,8 +11,9 @@ DEFAULT_SCAN_INTERVAL = 900  # 15 minutes
 # Tibber API
 TIBBER_API_URL = "https://api.tibber.com/v1-beta/gql"
 
-# Time Window Configuration (for Architecture v2.0)
-CONF_TIME_WINDOWS = "time_windows"
+# Hours Duration Configuration
+CONF_HOURS_DURATION = "hours_duration"
+DEFAULT_HOURS_DURATION = 3  # Default to 3 consecutive hours (integer only)
 
 # Battery Configuration
 CONF_BATTERY_EFFICIENCY = "battery_efficiency"

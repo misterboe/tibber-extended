@@ -31,9 +31,7 @@
         "description": "Verwalte deine Tibber Extended Einstellungen",
         "menu_options": {
           "battery_settings": "Batterie-Einstellungen",
-          "add_window": "Zeitfenster hinzufügen",
-          "remove_window": "Zeitfenster entfernen",
-          "list_windows": "Zeitfenster anzeigen"
+          "hours_duration": "Anzahl zusammenhängender Stunden"
         }
       },
       "battery_settings": {
@@ -46,39 +44,18 @@
           "battery_efficiency": "Gesamteffizienz beim Laden/Entladen (z.B. 90% = 10% Verlust)"
         }
       },
-      "add_window": {
-        "title": "Zeitfenster hinzufügen",
-        "description": "Erstelle ein neues optimiertes Zeitfenster für kostengünstigen Energieverbrauch.\n\nDas System findet automatisch die günstigsten zusammenhängenden Stunden.",
+      "hours_duration": {
+        "title": "Anzahl zusammenhängender Stunden",
+        "description": "Konfiguriere die Anzahl zusammenhängender Stunden für die Berechnung der günstigsten/teuersten Zeitfenster.\n\nAktuell: {current_duration}",
         "data": {
-          "name": "Name des Zeitfensters",
-          "duration": "Dauer (Stunden)",
-          "power_kw": "Leistung (kW, optional)"
+          "hours_duration": "Anzahl Stunden"
         },
         "data_description": {
-          "name": "Frei wählbarer Name (z.B. 'tesla_laden', '3h_billig')",
-          "duration": "Benötigte Stundenzahl (0.5 bis 24 Stunden)",
-          "power_kw": "Durchschnittliche Leistung für Kostenberechnung (optional)"
+          "hours_duration": "Benötigte Stundenanzahl (1 bis 24 Stunden, Standard: 3h)"
         }
-      },
-      "remove_window": {
-        "title": "Zeitfenster entfernen",
-        "description": "Wähle ein Zeitfenster zum Löschen aus.",
-        "data": {
-          "window_name": "Zeitfenster"
-        }
-      },
-      "list_windows": {
-        "title": "Konfigurierte Zeitfenster",
-        "description": "{windows_info}"
       }
     },
-    "error": {
-      "invalid_name": "Ungültiger Name. Verwende nur Buchstaben, Zahlen, Unterstriche und Bindestriche.",
-      "already_exists": "Ein Zeitfenster mit diesem Namen existiert bereits."
-    },
-    "abort": {
-      "no_window_manager": "Window Manager nicht verfügbar. Bitte lade die Integration neu.",
-      "no_windows": "Keine Zeitfenster konfiguriert."
-    }
+    "error": {},
+    "abort": {}
   }
 }

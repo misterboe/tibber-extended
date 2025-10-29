@@ -9,12 +9,13 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from .const import (
     CONF_API_KEY,
     CONF_BATTERY_EFFICIENCY,
+    CONF_HOURS_DURATION,
     DEFAULT_BATTERY_EFFICIENCY,
+    DEFAULT_HOURS_DURATION,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 from .coordinator import TibberDataUpdateCoordinator
-from .time_window import TimeWindowManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,12 +28,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     battery_efficiency = entry.data.get(
         CONF_BATTERY_EFFICIENCY, DEFAULT_BATTERY_EFFICIENCY
     )
+    hours_duration = entry.options.get(
+        CONF_HOURS_DURATION, DEFAULT_HOURS_DURATION
+    )
 
     coordinator = TibberDataUpdateCoordinator(
         hass,
         api_key=api_key,
         update_interval=DEFAULT_SCAN_INTERVAL,
         battery_efficiency=battery_efficiency,
+        hours_duration=hours_duration,
     )
 
     # Fetch initial data
@@ -42,19 +47,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         raise ConfigEntryNotReady(f"Unable to connect to Tibber API: {err}") from err
 
-    # Initialize TimeWindowManager
-    window_manager = TimeWindowManager(hass, entry, coordinator)
-
-    # Store coordinator and window manager
+    # Store coordinator
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
-    hass.data[DOMAIN][f"{entry.entry_id}_window_manager"] = window_manager
 
     # Setup platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register services
-    await async_setup_services(hass, entry, coordinator, window_manager)
+    await async_setup_services(hass, coordinator)
 
     # Setup options update listener
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
@@ -68,13 +69,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
-        hass.data[DOMAIN].pop(f"{entry.entry_id}_window_manager", None)
 
         # Unregister services if this was the last entry
         if not hass.config_entries.async_entries(DOMAIN):
             hass.services.async_remove(DOMAIN, "calculate_best_time_window")
-            hass.services.async_remove(DOMAIN, "add_time_window")
-            hass.services.async_remove(DOMAIN, "remove_time_window")
             hass.services.async_remove(DOMAIN, "get_price_forecast")
 
     return unload_ok
@@ -87,9 +85,7 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_setup_services(
     hass: HomeAssistant,
-    entry: ConfigEntry,
     coordinator: TibberDataUpdateCoordinator,
-    window_manager: TimeWindowManager,
 ) -> None:
     """Set up services for Tibber Extended."""
     from . import services
@@ -98,4 +94,4 @@ async def async_setup_services(
     if hass.services.has_service(DOMAIN, "calculate_best_time_window"):
         return
 
-    await services.async_setup_services(hass, coordinator, window_manager)
+    await services.async_setup_services(hass, coordinator)

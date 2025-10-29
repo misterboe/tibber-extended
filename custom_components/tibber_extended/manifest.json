@@ -7,6 +7,6 @@
   "documentation": "https://github.com/misterboe/tibber-extended",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "requirements": ["requests>=2.32.0"],
-  "version": "1.0.0-beta.1"
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "1.0.0"
 }

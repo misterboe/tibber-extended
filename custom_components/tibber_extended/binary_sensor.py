@@ -43,7 +43,7 @@ async def async_setup_entry(
                 # Architecture v2.0 - Threshold Binary Sensors
                 TibberIsBelowAverageSensor(coordinator, home_id),
                 # Time Window Optimization
-                TibberIsInBest3HourWindowSensor(coordinator, home_id),
+                TibberIsInBestConsecutiveHoursWindowSensor(coordinator, home_id),
                 # Battery Charging Optimization
                 TibberBatteryChargingRecommendedSensor(coordinator, home_id),
             ])
@@ -395,20 +395,20 @@ class TibberIsBelowAverageSensor(TibberBinarySensorBase):
 # ============================================================================
 
 
-class TibberIsInBest3HourWindowSensor(TibberBinarySensorBase):
-    """Binary sensor indicating if currently in best 3 consecutive hour window."""
+class TibberIsInBestConsecutiveHoursWindowSensor(TibberBinarySensorBase):
+    """Binary sensor indicating if currently in best consecutive hours window (configurable duration)."""
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "is_in_best_3h_window")
+        super().__init__(coordinator, home_id, "is_in_best_consecutive_hours")
 
     @property
     def is_on(self) -> bool:
-        """Return true if currently in best 3-hour window."""
+        """Return true if currently in best consecutive hours window."""
         if not self._home_data:
             return False
 
-        best_window = self._home_data.get("best_3h_window")
+        best_window = self._home_data.get("best_consecutive_hours")
         if not best_window or not best_window.get("hours"):
             return False
 
@@ -416,7 +416,7 @@ class TibberIsInBest3HourWindowSensor(TibberBinarySensorBase):
         if not current_time:
             return False
 
-        # Check if current time is within the 3-hour window
+        # Check if current time is within the consecutive hours window
         window_hours = best_window.get("hours", [])
         for hour in window_hours:
             if hour.get("start") == current_time:
@@ -435,7 +435,7 @@ class TibberIsInBest3HourWindowSensor(TibberBinarySensorBase):
         if not self._home_data:
             return {}
 
-        best_window = self._home_data.get("best_3h_window")
+        best_window = self._home_data.get("best_consecutive_hours")
         if not best_window or not best_window.get("hours"):
             return {
                 "status": "No window data available",
@@ -456,7 +456,7 @@ class TibberIsInBest3HourWindowSensor(TibberBinarySensorBase):
 
         return {
             "current_price": self._home_data["current"]["total"],
-            "best_3_hours": window_hours_list,
+            "best_consecutive_hours": window_hours_list,
             "window_start": best_window.get("window_start"),
             "window_end": best_window.get("window_end"),
             "window_average_price": window_avg,
@@ -464,7 +464,7 @@ class TibberIsInBest3HourWindowSensor(TibberBinarySensorBase):
             "savings_per_kwh": round(savings_per_kwh, 4),
             "savings_percent": round(savings_percent, 1),
             "window_hours_formatted": window_hours_formatted,
-            "window_duration_hours": 3,
+            "window_duration_hours": int(self.coordinator.hours_duration),
         }
 
 

@@ -3,7 +3,7 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-import requests
+import aiohttp
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -59,10 +59,12 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         api_key: str,
         update_interval: int = 300,
         battery_efficiency: float = 86,
+        hours_duration: int = 3,
     ) -> None:
         """Initialize the coordinator."""
         self.api_key = api_key
         self.battery_efficiency = battery_efficiency
+        self.hours_duration = hours_duration
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -78,9 +80,15 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch data from Tibber API for ALL homes."""
         try:
-            response = await self.hass.async_add_executor_job(
-                self._fetch_data
-            )
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    TIBBER_API_URL,
+                    json={"query": GRAPHQL_QUERY},
+                    headers=self.headers,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    resp.raise_for_status()
+                    response = await resp.json()
 
             if not response or "data" not in response:
                 # Keep last valid data on API errors
@@ -157,9 +165,9 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     current_price
                 )
 
-                # Calculate best 3-hour consecutive window
-                best_3h_window = self.calculate_best_time_window(
-                    duration_hours=3,
+                # Calculate best consecutive window (configurable duration)
+                best_consecutive_hours = self.calculate_best_time_window(
+                    duration_hours=int(self.hours_duration),
                     prices=price_info.get("today", [])
                 )
 
@@ -201,8 +209,8 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     "deviation_percent": round(deviation_percent, 2),
                     "rank": rank,
                     "percentile": round(percentile, 1),
-                    # Best 3-hour consecutive window
-                    "best_3h_window": best_3h_window,
+                    # Best consecutive hours window (configurable duration)
+                    "best_consecutive_hours": best_consecutive_hours,
                     # Battery charging fields
                     "battery_efficiency": self.battery_efficiency,
                     "battery_breakeven_price": round(breakeven_price, 4),
@@ -211,15 +219,15 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
 
             return all_homes_data
 
-        except requests.exceptions.HTTPError as err:
-            if err.response.status_code in (401, 403):
+        except aiohttp.ClientResponseError as err:
+            if err.status in (401, 403):
                 raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
             # Keep last valid data on HTTP errors
             if self.data:
                 _LOGGER.warning(f"HTTP error from Tibber API: {err}, keeping last valid data")
                 return self.data
             raise UpdateFailed(f"HTTP error from Tibber API: {err}") from err
-        except requests.RequestException as err:
+        except aiohttp.ClientError as err:
             # Keep last valid data on connection errors (timeout, network issues)
             if self.data:
                 _LOGGER.warning(f"Error communicating with Tibber API: {err}, keeping last valid data")
@@ -231,17 +239,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning(f"Error parsing Tibber data: {err}, keeping last valid data")
                 return self.data
             raise UpdateFailed(f"Error parsing Tibber data: {err}") from err
-
-    def _fetch_data(self) -> dict[str, Any]:
-        """Fetch data from Tibber API (blocking)."""
-        response = requests.post(
-            TIBBER_API_URL,
-            json={"query": GRAPHQL_QUERY},
-            headers=self.headers,
-            timeout=10,
-        )
-        response.raise_for_status()
-        return response.json()
 
     def _calculate_price_rank(self, current_price: float, all_prices: list[float]) -> int:
         """Calculate rank of current price (1 = cheapest, higher = more expensive)."""

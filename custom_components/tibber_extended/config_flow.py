@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import requests
+import aiohttp
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -15,7 +15,9 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import (
     CONF_API_KEY,
     CONF_BATTERY_EFFICIENCY,
+    CONF_HOURS_DURATION,
     DEFAULT_BATTERY_EFFICIENCY,
+    DEFAULT_HOURS_DURATION,
     DOMAIN,
     TIBBER_API_URL,
 )
@@ -51,34 +53,32 @@ async def validate_api_key(hass: HomeAssistant, api_key: str) -> dict[str, Any]:
     }
 
     try:
-        response = await hass.async_add_executor_job(
-            lambda: requests.post(
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
                 TIBBER_API_URL,
                 json={"query": query},
                 headers=headers,
-                timeout=10,
-            )
-        )
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as response:
+                if response.status == 401:
+                    raise InvalidAuth
 
-        if response.status_code == 401:
-            raise InvalidAuth
+                if response.status != 200:
+                    raise CannotConnect
 
-        if response.status_code != 200:
-            raise CannotConnect
+                data = await response.json()
 
-        data = response.json()
+                if "errors" in data:
+                    raise InvalidAuth
 
-        if "errors" in data:
-            raise InvalidAuth
+                homes = data.get("data", {}).get("viewer", {}).get("homes", [])
 
-        homes = data.get("data", {}).get("viewer", {}).get("homes", [])
+                if not homes:
+                    raise NoHomes
 
-        if not homes:
-            raise NoHomes
+                return {"homes": homes}
 
-        return {"homes": homes}
-
-    except requests.exceptions.RequestException as err:
+    except aiohttp.ClientError as err:
         raise CannotConnect from err
 
 
@@ -137,127 +137,47 @@ class TibberOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Manage time windows and battery settings."""
+        """Manage battery settings and hours duration."""
         return self.async_show_menu(
             step_id="init",
             menu_options=[
                 "battery_settings",
-                "add_window",
-                "remove_window",
-                "list_windows",
+                "hours_duration",
             ],
         )
 
-    async def async_step_add_window(
+    async def async_step_hours_duration(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Add a new time window."""
-        errors: dict[str, str] = {}
-
+        """Configure hours duration setting."""
         if user_input is not None:
-            # Validate window name
-            name = user_input["name"].strip().lower().replace(" ", "_")
-
-            if not name.replace("_", "").replace("-", "").isalnum():
-                errors["name"] = "invalid_name"
-            else:
-                # Add window via TimeWindowManager
-                from .time_window import TimeWindowManager
-
-                window_manager: TimeWindowManager = self.hass.data[DOMAIN].get(
-                    f"{self.config_entry.entry_id}_window_manager"
-                )
-
-                if window_manager:
-                    success = await window_manager.add_window(
-                        name=name,
-                        duration=user_input["duration"],
-                        power_kw=user_input.get("power_kw"),
-                    )
-
-                    if success:
-                        return self.async_create_entry(title="", data={})
-                    else:
-                        errors["name"] = "already_exists"
-
-        return self.async_show_form(
-            step_id="add_window",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("name"): str,
-                    vol.Required("duration", default=3.0): vol.All(
-                        vol.Coerce(float), vol.Range(min=0.5, max=24.0)
-                    ),
-                    vol.Optional("power_kw"): vol.All(
-                        vol.Coerce(float), vol.Range(min=0.1, max=50.0)
-                    ),
-                }
-            ),
-            errors=errors,
-        )
-
-    async def async_step_remove_window(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Remove a time window."""
-        from .time_window import TimeWindowManager
-
-        window_manager: TimeWindowManager = self.hass.data[DOMAIN].get(
-            f"{self.config_entry.entry_id}_window_manager"
-        )
-
-        if not window_manager:
-            return self.async_abort(reason="no_window_manager")
-
-        windows = window_manager.get_all_windows()
-
-        if not windows:
-            return self.async_abort(reason="no_windows")
-
-        if user_input is not None:
-            name = user_input["window_name"]
-            await window_manager.remove_window(name)
+            # Update config entry options with new hours duration
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                options={
+                    **self.config_entry.options,
+                    CONF_HOURS_DURATION: user_input[CONF_HOURS_DURATION],
+                },
+            )
             return self.async_create_entry(title="", data={})
 
-        # Create selection dict
-        window_options = {name: name for name in windows.keys()}
+        # Get current hours duration from options
+        current_duration = self.config_entry.options.get(
+            CONF_HOURS_DURATION, DEFAULT_HOURS_DURATION
+        )
 
         return self.async_show_form(
-            step_id="remove_window",
+            step_id="hours_duration",
             data_schema=vol.Schema(
                 {
-                    vol.Required("window_name"): vol.In(window_options),
+                    vol.Required(
+                        CONF_HOURS_DURATION, default=int(current_duration)
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
                 }
             ),
-        )
-
-    async def async_step_list_windows(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """List all configured time windows."""
-        from .time_window import TimeWindowManager
-
-        window_manager: TimeWindowManager = self.hass.data[DOMAIN].get(
-            f"{self.config_entry.entry_id}_window_manager"
-        )
-
-        if not window_manager:
-            return self.async_abort(reason="no_window_manager")
-
-        windows = window_manager.get_all_windows()
-
-        if not windows:
-            return self.async_abort(reason="no_windows")
-
-        # Build description
-        description = "**Configured Time Windows:**\n\n"
-        for window in windows.values():
-            power_info = f"{window.power_kw} kW" if window.power_kw else "No power specified"
-            description += f"- **{window.name}**: {window.duration_hours}h, {power_info}\n"
-
-        return self.async_show_form(
-            step_id="list_windows",
-            description_placeholders={"windows_info": description},
+            description_placeholders={
+                "current_duration": f"{int(current_duration)}h",
+            },
         )
 
     async def async_step_battery_settings(

@@ -1,0 +1,62 @@
+calculate_best_time_window:
+  name: Calculate Best Time Window
+  description: Finds the cheapest consecutive time window for energy consumption
+  fields:
+    duration_hours:
+      name: Duration (hours)
+      description: Number of consecutive hours needed (integer)
+      required: true
+      example: 3
+      selector:
+        number:
+          min: 1
+          max: 24
+          mode: box
+    power_kw:
+      name: Power (kW)
+      description: Average power consumption for cost calculation
+      required: false
+      example: 11.0
+      selector:
+        number:
+          min: 0.1
+          max: 50.0
+          step: 0.1
+          mode: box
+    start_after:
+      name: Start After
+      description: Earliest start time (HH:MM format, e.g. "14:00")
+      required: false
+      example: "14:00"
+      selector:
+        text:
+    end_before:
+      name: End Before
+      description: Latest end time (HH:MM format, e.g. "22:00")
+      required: false
+      example: "22:00"
+      selector:
+        text:
+    include_tomorrow:
+      name: Include Tomorrow
+      description: Include tomorrow's prices in calculation
+      required: false
+      default: false
+      selector:
+        boolean:
+
+get_price_forecast:
+  name: Get Price Forecast
+  description: Get detailed price forecast for upcoming hours
+  fields:
+    hours_ahead:
+      name: Hours Ahead
+      description: Number of hours to forecast
+      required: false
+      default: 24
+      example: 24
+      selector:
+        number:
+          min: 1
+          max: 48
+          mode: box
