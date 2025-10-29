@@ -165,15 +165,14 @@ class TibberOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Configure hours duration setting."""
         if user_input is not None:
-            # Update config entry options with new hours duration
-            self.hass.config_entries.async_update_entry(
-                self.config_entry,
-                options={
+            # Return the updated options (async_create_entry handles the persistence)
+            return self.async_create_entry(
+                title="",
+                data={
                     **self.config_entry.options,
                     CONF_HOURS_DURATION: user_input[CONF_HOURS_DURATION],
                 },
             )
-            return self.async_create_entry(title="", data={})
 
         # Get current hours duration from options
         current_duration = self.config_entry.options.get(
@@ -211,7 +210,10 @@ class TibberOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_BATTERY_EFFICIENCY: user_input[CONF_BATTERY_EFFICIENCY],
                 },
             )
-            return self.async_create_entry(title="", data={})
+            # Reload the integration to apply changes
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            # Return current options unchanged (preserve hours_duration)
+            return self.async_create_entry(title="", data=self.config_entry.options)
 
         # Get current battery efficiency from config
         current_efficiency = self.config_entry.data.get(
