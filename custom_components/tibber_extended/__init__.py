@@ -24,6 +24,15 @@ PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tibber Extended from a config entry."""
+    # Migrate: Initialize options if not present (for existing installations)
+    if not entry.options:
+        hass.config_entries.async_update_entry(
+            entry,
+            options={
+                CONF_HOURS_DURATION: DEFAULT_HOURS_DURATION,
+            },
+        )
+
     api_key = entry.data[CONF_API_KEY]
     battery_efficiency = entry.data.get(
         CONF_BATTERY_EFFICIENCY, DEFAULT_BATTERY_EFFICIENCY

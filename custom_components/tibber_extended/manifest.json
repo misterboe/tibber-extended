@@ -5,6 +5,7 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/misterboe/tibber-extended",
+  "issue_tracker": "https://github.com/misterboe/tibber-extended/issues",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "requirements": ["aiohttp>=3.8.0"],
