@@ -31,6 +31,13 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(
             CONF_BATTERY_EFFICIENCY, default=DEFAULT_BATTERY_EFFICIENCY
         ): vol.All(vol.Coerce(float), vol.Range(min=1, max=100)),
+        vol.Optional(
+            CONF_HOURS_DURATION, default=DEFAULT_HOURS_DURATION
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1, max=24, mode=selector.NumberSelectorMode.BOX
+            )
+        ),
     }
 )
 
@@ -102,11 +109,14 @@ class TibberConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(user_input[CONF_API_KEY])
                 self._abort_if_unique_id_configured()
 
+                # Separate data and options: hours_duration goes to options
+                hours_duration = user_input.pop(CONF_HOURS_DURATION, DEFAULT_HOURS_DURATION)
+
                 return self.async_create_entry(
                     title="Tibber Extended",
-                    data=user_input,
+                    data=user_input,  # API key and battery_efficiency
                     options={
-                        CONF_HOURS_DURATION: DEFAULT_HOURS_DURATION,
+                        CONF_HOURS_DURATION: hours_duration,
                     },
                 )
 

@@ -6,11 +6,13 @@
         "description": "Please enter your Tibber API key. You can find it in the Tibber app under Settings > Developer.",
         "data": {
           "api_key": "Tibber API Key",
-          "battery_efficiency": "Battery Efficiency (%)"
+          "battery_efficiency": "Battery Efficiency (%)",
+          "hours_duration": "Number of Hours"
         },
         "data_description": {
           "api_key": "Your personal Tibber API token",
-          "battery_efficiency": "Charge/discharge efficiency of your battery (default: 75%)"
+          "battery_efficiency": "Charge/discharge efficiency of your battery (default: 75%)",
+          "hours_duration": "Hours duration for calculations (1 to 24, default: 3)"
         }
       }
     },

@@ -6,11 +6,13 @@
         "description": "Bitte gib deinen Tibber API-Schlüssel ein. Du findest ihn in der Tibber App unter Einstellungen > Entwickler.",
         "data": {
           "api_key": "Tibber API-Schlüssel",
-          "battery_efficiency": "Batterie-Effizienz (%)"
+          "battery_efficiency": "Batterie-Effizienz (%)",
+          "hours_duration": "Anzahl Stunden"
         },
         "data_description": {
           "api_key": "Dein persönlicher Tibber API Token",
-          "battery_efficiency": "Lade-/Entlade-Effizienz deiner Batterie (Standard: 90%)"
+          "battery_efficiency": "Lade-/Entlade-Effizienz deiner Batterie (Standard: 75%)",
+          "hours_duration": "Stundenanzahl für Berechnungen (1 bis 24, Standard: 3)"
         }
       }
     },
