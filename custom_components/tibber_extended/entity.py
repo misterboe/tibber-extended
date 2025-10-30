@@ -23,9 +23,15 @@ class TibberEntityBase(CoordinatorEntity[TibberDataUpdateCoordinator]):
         super().__init__(coordinator)
         self._home_id = home_id
         self._sensor_type = sensor_type
-        # Format: "Tibber Extended {home_id} {Sensor Type}"
-        self._attr_name = f"Tibber Extended {home_id} {sensor_type.replace('_', ' ').title()}"
-        self._attr_unique_id = f"tibber_extended_{home_id}_{sensor_type}"
+
+        # Get the home slug for clean entity IDs
+        home_data = coordinator.data.get(home_id) if coordinator.data else None
+        home_slug = home_data.get("home", {}).get("slug", home_id) if home_data else home_id
+
+        # Friendly Name: Just the sensor type (no prefix)
+        self._attr_name = sensor_type.replace('_', ' ').title()
+        # Entity ID: tibber_extended_{slug}_{sensor_type}
+        self._attr_unique_id = f"tibber_extended_{home_slug}_{sensor_type}"
 
     @property
     def _home_data(self) -> dict | None:

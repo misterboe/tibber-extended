@@ -478,7 +478,6 @@ class TibberBatteryChargingRecommendedSensor(TibberBinarySensorBase):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, home_id, "is_cheap_power_now")
-        self._attr_name = "Cheap Power Now"
 
     @property
     def is_on(self) -> bool:
@@ -538,7 +537,6 @@ class TibberIsCheapestHourSensor(TibberBinarySensorBase):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, home_id, "is_cheapest_hour")
-        self._attr_name = "Is Cheapest Hour"
 
     @property
     def is_on(self) -> bool:

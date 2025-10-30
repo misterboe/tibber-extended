@@ -1,6 +1,7 @@
 """Data update coordinator for Tibber Smart Control."""
 from datetime import timedelta
 import logging
+import re
 from typing import Any
 
 import aiohttp
@@ -192,9 +193,19 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     )
 
                     # Extract home info for device
+                    app_nickname = home_data.get("appNickname") or "home"
+
+                    # Create a clean slug for entity IDs from appNickname
+                    # Remove special chars, convert to lowercase, replace spaces with underscore
+                    slug = re.sub(r'[^a-z0-9]+', '_', app_nickname.lower()).strip('_')
+                    # Keep pure numbers as-is (like "27"), don't add home_ prefix
+                    if not slug:
+                        slug = "home"
+
                     home_info = {
                         "id": home_id,
-                        "name": home_data.get("appNickname") or "Tibber Home",
+                        "name": app_nickname,
+                        "slug": slug,  # Clean identifier for entity IDs
                     }
 
                     # Battery charging optimization
