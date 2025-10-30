@@ -136,60 +136,60 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     today_prices = [p["total"] for p in price_info.get("today", [])]
                     current_price = current["total"]
 
-                avg_price = sum(today_prices) / len(today_prices) if today_prices else current_price
-                min_price = min(today_prices) if today_prices else current_price
-                max_price = max(today_prices) if today_prices else current_price
+                    avg_price = sum(today_prices) / len(today_prices) if today_prices else current_price
+                    min_price = min(today_prices) if today_prices else current_price
+                    max_price = max(today_prices) if today_prices else current_price
 
-                # Find cheapest and most expensive hours
-                sorted_today = sorted(
-                    price_info.get("today", []),
-                    key=lambda x: x["total"]
-                )
+                    # Find cheapest and most expensive hours
+                    sorted_today = sorted(
+                        price_info.get("today", []),
+                        key=lambda x: x["total"]
+                    )
 
-                n = int(self.hours_duration)
-                cheapest_hours = sorted_today[:n] if len(sorted_today) >= n else sorted_today
-                expensive_hours = sorted_today[-n:] if len(sorted_today) >= n else sorted_today
+                    n = int(self.hours_duration)
+                    cheapest_hours = sorted_today[:n] if len(sorted_today) >= n else sorted_today
+                    expensive_hours = sorted_today[-n:] if len(sorted_today) >= n else sorted_today
 
-                # Calculate deviation from average
-                deviation_absolute = current_price - avg_price
-                deviation_percent = (deviation_absolute / avg_price * 100) if avg_price > 0 else 0
+                    # Calculate deviation from average
+                    deviation_absolute = current_price - avg_price
+                    deviation_percent = (deviation_absolute / avg_price * 100) if avg_price > 0 else 0
 
-                # Calculate rank (1 = cheapest, 24 = most expensive)
-                rank = self._calculate_price_rank(current_price, today_prices)
+                    # Calculate rank (1 = cheapest, 24 = most expensive)
+                    rank = self._calculate_price_rank(current_price, today_prices)
 
-                # Calculate percentile (0-100, lower = cheaper)
-                percentile = (rank / len(today_prices) * 100) if today_prices else 50
+                    # Calculate percentile (0-100, lower = cheaper)
+                    percentile = (rank / len(today_prices) * 100) if today_prices else 50
 
-                # Simplified cheapest_hours structure with price_level
-                cheapest_hours_simple = [
-                    {
-                        "start": h["startsAt"],
-                        "price": round(h["total"], 4),
-                        "price_level": h.get("level", "NORMAL")
-                    }
-                    for h in cheapest_hours
-                ]
-                expensive_hours_simple = [
-                    {
-                        "start": h["startsAt"],
-                        "price": round(h["total"], 4),
-                        "price_level": h.get("level", "NORMAL")
-                    }
-                    for h in expensive_hours
-                ]
+                    # Simplified cheapest_hours structure with price_level
+                    cheapest_hours_simple = [
+                        {
+                            "start": h["startsAt"],
+                            "price": round(h["total"], 4),
+                            "price_level": h.get("level", "NORMAL")
+                        }
+                        for h in cheapest_hours
+                    ]
+                    expensive_hours_simple = [
+                        {
+                            "start": h["startsAt"],
+                            "price": round(h["total"], 4),
+                            "price_level": h.get("level", "NORMAL")
+                        }
+                        for h in expensive_hours
+                    ]
 
-                # Calculate next cheap window (next time it becomes cheap)
-                next_cheap_window = self._calculate_next_cheap_window(
-                    price_info.get("today", []),
-                    price_info.get("tomorrow", []),
-                    current_price
-                )
+                    # Calculate next cheap window (next time it becomes cheap)
+                    next_cheap_window = self._calculate_next_cheap_window(
+                        price_info.get("today", []),
+                        price_info.get("tomorrow", []),
+                        current_price
+                    )
 
-                # Calculate best consecutive window (configurable duration)
-                best_consecutive_hours = self.calculate_best_time_window(
-                    duration_hours=int(self.hours_duration),
-                    prices=price_info.get("today", [])
-                )
+                    # Calculate best consecutive window (configurable duration)
+                    best_consecutive_hours = self.calculate_best_time_window(
+                        duration_hours=int(self.hours_duration),
+                        prices=price_info.get("today", [])
+                    )
 
                     # Extract home info for device
                     home_info = {
