@@ -11,7 +11,7 @@ from .coordinator import TibberDataUpdateCoordinator
 class TibberEntityBase(CoordinatorEntity[TibberDataUpdateCoordinator]):
     """Common base for all Tibber entities."""
 
-    _attr_has_entity_name = False
+    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -24,14 +24,9 @@ class TibberEntityBase(CoordinatorEntity[TibberDataUpdateCoordinator]):
         self._home_id = home_id
         self._sensor_type = sensor_type
 
-        # Get the home slug for clean entity IDs
-        home_data = coordinator.data.get(home_id) if coordinator.data else None
-        home_slug = home_data.get("home", {}).get("slug", home_id) if home_data else home_id
-
-        # Friendly Name: Just the sensor type (no prefix)
+        # Entity name is just the sensor type (device name provides prefix)
         self._attr_name = sensor_type.replace('_', ' ').title()
-        # Entity ID: tibber_extended_{slug}_{sensor_type}
-        self._attr_unique_id = f"tibber_extended_{home_slug}_{sensor_type}"
+        self._attr_unique_id = f"{home_id}_{sensor_type}"
 
     @property
     def _home_data(self) -> dict | None:
@@ -48,10 +43,11 @@ class TibberEntityBase(CoordinatorEntity[TibberDataUpdateCoordinator]):
             return None
 
         home = home_data["home"]
+        slug = home.get("slug", home["id"])
 
         return DeviceInfo(
             identifiers={(DOMAIN, home["id"])},
-            name=home["name"],
+            name=f"tibber_extended_{slug}",
             manufacturer="Tibber",
             model="Smart Control",
             configuration_url="https://app.tibber.com",
