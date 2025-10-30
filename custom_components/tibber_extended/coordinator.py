@@ -110,12 +110,31 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             all_homes_data = {}
 
             for home_data in homes:
-                home_id = home_data["id"]
-                price_info = home_data["currentSubscription"]["priceInfo"]
+                try:
+                    home_id = home_data.get("id")
+                    if not home_id:
+                        _LOGGER.warning("Home without ID found, skipping")
+                        continue
 
-                # Calculate statistics for this home
-                today_prices = [p["total"] for p in price_info.get("today", [])]
-                current_price = price_info["current"]["total"]
+                    # Safe access with None checks
+                    current_subscription = home_data.get("currentSubscription")
+                    if not current_subscription:
+                        _LOGGER.warning(f"Home {home_id} has no currentSubscription, skipping")
+                        continue
+
+                    price_info = current_subscription.get("priceInfo")
+                    if not price_info:
+                        _LOGGER.warning(f"Home {home_id} has no priceInfo, skipping")
+                        continue
+
+                    current = price_info.get("current")
+                    if not current or "total" not in current:
+                        _LOGGER.warning(f"Home {home_id} has no current price, skipping")
+                        continue
+
+                    # Calculate statistics for this home
+                    today_prices = [p["total"] for p in price_info.get("today", [])]
+                    current_price = current["total"]
 
                 avg_price = sum(today_prices) / len(today_prices) if today_prices else current_price
                 min_price = min(today_prices) if today_prices else current_price
@@ -172,51 +191,72 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     prices=price_info.get("today", [])
                 )
 
-                # Extract home info for device
-                home_info = {
-                    "id": home_id,
-                    "name": home_data.get("appNickname") or "Tibber Home",
-                }
+                    # Extract home info for device
+                    home_info = {
+                        "id": home_id,
+                        "name": home_data.get("appNickname") or "Tibber Home",
+                    }
 
-                # Battery charging optimization
-                current_price_val = price_info["current"]["total"]
-                battery_efficiency_decimal = self.battery_efficiency / 100
+                    # Battery charging optimization
+                    current_price_val = current["total"]  # Use already validated 'current'
+                    battery_efficiency_decimal = self.battery_efficiency / 100
 
-                # Calculate breakeven price: the maximum price at which charging is economical
-                # Formula: average_price * efficiency (accounting for losses)
-                breakeven_price = (
-                    avg_price * battery_efficiency_decimal
-                    if battery_efficiency_decimal > 0
-                    else avg_price
-                )
+                    # Calculate breakeven price: the maximum price at which charging is economical
+                    # Formula: average_price * efficiency (accounting for losses)
+                    breakeven_price = (
+                        avg_price * battery_efficiency_decimal
+                        if battery_efficiency_decimal > 0
+                        else avg_price
+                    )
 
-                # Check if current price is below breakeven (economical to charge)
-                battery_is_economical = current_price_val <= breakeven_price
+                    # Check if current price is below breakeven (economical to charge)
+                    battery_is_economical = current_price_val <= breakeven_price
 
-                all_homes_data[home_id] = {
-                    "home": home_info,
-                    "current": price_info["current"],
-                    "today": price_info.get("today", []),
-                    "tomorrow": price_info.get("tomorrow", []),
-                    "average_price": avg_price,
-                    "min_price": min_price,
-                    "max_price": max_price,
-                    # Simplified structures
-                    "cheapest_hours": cheapest_hours_simple,
-                    "most_expensive_hours": expensive_hours_simple,
-                    "next_cheap_window": next_cheap_window,
-                    # Architecture v2.0 fields
-                    "deviation_absolute": round(deviation_absolute, 4),
-                    "deviation_percent": round(deviation_percent, 2),
-                    "rank": rank,
-                    "percentile": round(percentile, 1),
-                    # Best consecutive hours window (configurable duration)
-                    "best_consecutive_hours": best_consecutive_hours,
-                    # Battery charging fields
-                    "battery_efficiency": self.battery_efficiency,
-                    "battery_breakeven_price": round(breakeven_price, 4),
-                    "battery_is_economical": battery_is_economical,
-                }
+                    all_homes_data[home_id] = {
+                        "home": home_info,
+                        "current": current,  # Use already validated 'current'
+                        "today": price_info.get("today", []),
+                        "tomorrow": price_info.get("tomorrow", []),
+                        "average_price": avg_price,
+                        "min_price": min_price,
+                        "max_price": max_price,
+                        # Simplified structures
+                        "cheapest_hours": cheapest_hours_simple,
+                        "most_expensive_hours": expensive_hours_simple,
+                        "next_cheap_window": next_cheap_window,
+                        # Architecture v2.0 fields
+                        "deviation_absolute": round(deviation_absolute, 4),
+                        "deviation_percent": round(deviation_percent, 2),
+                        "rank": rank,
+                        "percentile": round(percentile, 1),
+                        # Best consecutive hours window (configurable duration)
+                        "best_consecutive_hours": best_consecutive_hours,
+                        # Battery charging fields
+                        "battery_efficiency": self.battery_efficiency,
+                        "battery_breakeven_price": round(breakeven_price, 4),
+                        "battery_is_economical": battery_is_economical,
+                    }
+
+                    _LOGGER.debug(f"Successfully processed home {home_id}")
+
+                except Exception as err:
+                    # Log error but continue with other homes
+                    _LOGGER.error(
+                        f"Error processing home {home_data.get('id', 'unknown')}: {err}",
+                        exc_info=True
+                    )
+                    # If we have previous data for this home, keep it
+                    if self.data and home_data.get("id") in self.data:
+                        all_homes_data[home_data.get("id")] = self.data[home_data.get("id")]
+                        _LOGGER.info(f"Keeping last valid data for home {home_data.get('id')}")
+                    continue
+
+            # If no homes were successfully processed, keep last valid data
+            if not all_homes_data:
+                if self.data:
+                    _LOGGER.warning("No homes could be processed, keeping last valid data")
+                    return self.data
+                raise UpdateFailed("Failed to process any homes from Tibber API")
 
             return all_homes_data
 

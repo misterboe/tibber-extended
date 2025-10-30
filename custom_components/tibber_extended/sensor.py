@@ -42,8 +42,8 @@ async def async_setup_entry(
                 TibberMinPriceSensor(coordinator, home_id),
                 TibberMaxPriceSensor(coordinator, home_id),
                 TibberPriceLevelSensor(coordinator, home_id),
-                TibberCheapestHoursSensor(coordinator, home_id),
-                TibberMostExpensiveHoursSensor(coordinator, home_id),
+                TibberCheapHoursSensor(coordinator, home_id),
+                TibberExpensiveHoursSensor(coordinator, home_id),
                 # Best consecutive hours (configurable duration)
                 TibberBestConsecutiveHoursSensor(coordinator, home_id),
                 # Architecture v2.0 - Deviation Sensors
@@ -201,12 +201,12 @@ class TibberPriceLevelSensor(TibberSensorBase):
         return "mdi:cash"
 
 
-class TibberCheapestHoursSensor(TibberSensorBase):
-    """Sensor showing the cheapest hours today (configurable duration)."""
+class TibberCheapHoursSensor(TibberSensorBase):
+    """Sensor showing the cheap hours today (top N cheapest, configurable duration)."""
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "cheapest_hours")
+        super().__init__(coordinator, home_id, "cheap_hours")
 
     @property
     def native_value(self) -> str | None:
@@ -239,12 +239,12 @@ class TibberCheapestHoursSensor(TibberSensorBase):
         return "mdi:cash-check"
 
 
-class TibberMostExpensiveHoursSensor(TibberSensorBase):
-    """Sensor showing the most expensive hours today (configurable duration)."""
+class TibberExpensiveHoursSensor(TibberSensorBase):
+    """Sensor showing the expensive hours today (top N most expensive, configurable duration)."""
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "most_expensive_hours")
+        super().__init__(coordinator, home_id, "expensive_hours")
 
     @property
     def native_value(self) -> str | None:

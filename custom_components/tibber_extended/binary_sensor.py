@@ -37,8 +37,8 @@ async def async_setup_entry(
                 TibberIsCheapSensor(coordinator, home_id),
                 TibberIsExpensiveSensor(coordinator, home_id),
                 TibberIsVeryExpensiveSensor(coordinator, home_id),
-                TibberIsCheapestHourSensor(coordinator, home_id),
-                TibberIsMostExpensiveHourSensor(coordinator, home_id),
+                TibberIsCheapHourSensor(coordinator, home_id),
+                TibberIsExpensiveHourSensor(coordinator, home_id),
                 TibberIsGoodChargingTimeSensor(coordinator, home_id),
                 # Architecture v2.0 - Threshold Binary Sensors
                 TibberIsBelowAverageSensor(coordinator, home_id),
@@ -46,6 +46,8 @@ async def async_setup_entry(
                 TibberIsInBestConsecutiveHoursWindowSensor(coordinator, home_id),
                 # Battery Charging Optimization
                 TibberBatteryChargingRecommendedSensor(coordinator, home_id),
+                # Single Cheapest Hour (absolute minimum)
+                TibberIsCheapestHourSensor(coordinator, home_id),
             ])
 
     async_add_entities(entities)
@@ -187,12 +189,12 @@ class TibberIsVeryExpensiveSensor(TibberBinarySensorBase):
         }
 
 
-class TibberIsCheapestHourSensor(TibberBinarySensorBase):
-    """Binary sensor indicating if current hour is one of the 3 cheapest."""
+class TibberIsCheapHourSensor(TibberBinarySensorBase):
+    """Binary sensor indicating if current hour is one of the N cheap hours (top N cheapest)."""
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "is_cheapest_hour")
+        super().__init__(coordinator, home_id, "is_cheap_hour")
 
     @property
     def is_on(self) -> bool:
@@ -231,12 +233,12 @@ class TibberIsCheapestHourSensor(TibberBinarySensorBase):
         }
 
 
-class TibberIsMostExpensiveHourSensor(TibberBinarySensorBase):
-    """Binary sensor indicating if current hour is one of the 3 most expensive."""
+class TibberIsExpensiveHourSensor(TibberBinarySensorBase):
+    """Binary sensor indicating if current hour is one of the N expensive hours (top N most expensive)."""
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator, home_id, "is_most_expensive_hour")
+        super().__init__(coordinator, home_id, "is_expensive_hour")
 
     @property
     def is_on(self) -> bool:
@@ -525,4 +527,62 @@ class TibberBatteryChargingRecommendedSensor(TibberBinarySensorBase):
             "is_below_breakeven": current_price <= breakeven_price,
             "difference_to_breakeven": round(breakeven_price - current_price, 4),
             "cheapest_hours_today": len(cheapest_hours),
+        }
+
+
+class TibberIsCheapestHourSensor(TibberBinarySensorBase):
+    """Binary sensor indicating if current hour is THE cheapest hour of the day (00:00-23:59)."""
+
+    def __init__(
+        self, coordinator: TibberDataUpdateCoordinator, home_id: str
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, home_id, "is_cheapest_hour")
+        self._attr_name = "Is Cheapest Hour"
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if current hour is THE cheapest hour of the entire day."""
+        if not self._home_data:
+            return False
+
+        # Get the cheapest hour (first in sorted cheapest_hours list)
+        cheapest_hours = self._home_data.get("cheapest_hours", [])
+        if not cheapest_hours:
+            return False
+
+        # The first entry is the cheapest
+        cheapest = cheapest_hours[0]
+        current_time = self._home_data["current"].get("startsAt")
+
+        return cheapest.get("start") == current_time
+
+    @property
+    def icon(self) -> str:
+        """Return icon."""
+        return "mdi:trophy" if self.is_on else "mdi:trophy-outline"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if not self._home_data:
+            return {}
+
+        cheapest_hours = self._home_data.get("cheapest_hours", [])
+        if not cheapest_hours:
+            return {"status": "No price data available"}
+
+        cheapest = cheapest_hours[0]
+        current_price = self._home_data["current"]["total"]
+
+        # Format cheapest hour info
+        cheapest_time = cheapest["start"].split("T")[1][:5]
+        cheapest_price = cheapest["price"]
+
+        return {
+            "current_price": current_price,
+            "cheapest_hour": f"{cheapest_time} ({cheapest_price:.4f}€)",
+            "cheapest_price": cheapest_price,
+            "cheapest_time": cheapest_time,
+            "difference_to_cheapest": round(current_price - cheapest_price, 4),
         }

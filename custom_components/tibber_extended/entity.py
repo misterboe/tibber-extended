@@ -11,7 +11,7 @@ from .coordinator import TibberDataUpdateCoordinator
 class TibberEntityBase(CoordinatorEntity[TibberDataUpdateCoordinator]):
     """Common base for all Tibber entities."""
 
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
 
     def __init__(
         self,
@@ -23,8 +23,9 @@ class TibberEntityBase(CoordinatorEntity[TibberDataUpdateCoordinator]):
         super().__init__(coordinator)
         self._home_id = home_id
         self._sensor_type = sensor_type
-        self._attr_name = sensor_type.replace("_", " ").title()
-        self._attr_unique_id = f"{home_id}_{sensor_type}"
+        # Format: "Tibber Extended {home_id} {Sensor Type}"
+        self._attr_name = f"Tibber Extended {home_id} {sensor_type.replace('_', ' ').title()}"
+        self._attr_unique_id = f"tibber_extended_{home_id}_{sensor_type}"
 
     @property
     def _home_data(self) -> dict | None:
