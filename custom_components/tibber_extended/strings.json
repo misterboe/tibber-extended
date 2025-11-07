@@ -33,7 +33,8 @@
         "description": "Verwalte deine Tibber Extended Einstellungen",
         "menu_options": {
           "battery_settings": "Batterie-Einstellungen",
-          "hours_duration": "Stundenanzahl"
+          "hours_duration": "Stundenanzahl",
+          "time_window": "Zeitfenster"
         }
       },
       "battery_settings": {
@@ -55,9 +56,35 @@
         "data_description": {
           "hours_duration": "Stundenanzahl für Berechnungen (1 bis 24, Standard: 3)"
         }
+      },
+      "time_window": {
+        "title": "Zeitfenster",
+        "description": "Konfiguriere das Zeitfenster für günstige Stunden (z.B. für Laden von Elektroautos).\n\nAktuell: {current_start} - {current_end}",
+        "data": {
+          "time_window_start": "Start-Zeit",
+          "time_window_end": "End-Zeit"
+        },
+        "data_description": {
+          "time_window_start": "Start des Zeitfensters (z.B. 17:00 für Abend)",
+          "time_window_end": "Ende des Zeitfensters (z.B. 07:00 für Morgen)"
+        }
       }
     },
-    "error": {},
+    "error": {
+      "invalid_time_format": "Ungültiges Zeitformat. Bitte verwende HH:MM (z.B. 17:00)."
+    },
     "abort": {}
+  },
+  "entity": {
+    "sensor": {
+      "time_window_cheapest_hours": {
+        "name": "Günstigste Stunden im Zeitfenster"
+      }
+    },
+    "binary_sensor": {
+      "is_time_window_cheap_hour": {
+        "name": "Ist günstige Stunde im Zeitfenster"
+      }
+    }
   }
 }

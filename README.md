@@ -5,10 +5,11 @@ Smart energy price control with Tibber - optimized for automation and battery ma
 ## Features
 
 - ✅ **Config Flow Setup** - Easy UI-based installation
-- 📊 **11+ Sensors** - Complete price information and analytics
-- 🔌 **10 Binary Sensors** - Direct automation triggers
+- 📊 **12 Sensors** - Complete price information and analytics
+- 🔌 **12 Binary Sensors** - Direct automation triggers
 - 🔋 **Battery Optimization** - Configurable efficiency settings
 - ⏰ **Flexible Time Windows** - Configurable consecutive hours (1-24h)
+- 🕐 **Custom Time Window** - Find cheapest hours within specific time ranges (e.g., 17:00-07:00)
 - 🏠 **Multi-Home Support** - All Tibber homes automatically detected
 - 🌍 **Multilingual** - German and English translations
 - 🔄 **Smart Updates** - Every 15 minutes with error resilience
@@ -53,6 +54,7 @@ After installation, click **"Configure"** to access:
 
 - **Battery Efficiency** - Set charge/discharge efficiency (1-100%, default: 75%)
 - **Hours Duration** - Number of hours for cheapest/most expensive hours and best consecutive window (1-24h, default: 3h)
+- **Time Window** - Configure start/end time for custom time window analysis (default: 17:00-07:00)
 
 ## Available Sensors
 
@@ -71,6 +73,7 @@ After installation, click **"Configure"** to access:
 | `sensor.tibber_price_deviation_percent` | Deviation from average | % |
 | `sensor.tibber_price_deviation_absolute` | Absolute deviation | EUR/kWh |
 | `sensor.tibber_battery_breakeven_price` | Economical charging threshold | EUR/kWh |
+| `sensor.tibber_time_window_cheapest_hours` | Cheapest hours in configured time window | Text |
 
 **Extra attributes on `sensor.tibber_current_price`:**
 - `current` - Full current price data (total, energy, tax, level, startsAt)
@@ -89,12 +92,14 @@ After installation, click **"Configure"** to access:
 | `binary_sensor.tibber_is_cheap` | Price is CHEAP or VERY_CHEAP | Good charging time |
 | `binary_sensor.tibber_is_expensive` | Price is EXPENSIVE or VERY_EXPENSIVE | Avoid charging |
 | `binary_sensor.tibber_is_very_expensive` | Price is VERY_EXPENSIVE | Definitely avoid! |
-| `binary_sensor.tibber_is_cheapest_hour` | In cheapest hours (configurable) | Smart scheduling |
-| `binary_sensor.tibber_is_most_expensive_hour` | In most expensive hours (configurable) | Battery discharge |
+| `binary_sensor.tibber_is_cheap_hour` | In cheap hours (top N configurable) | Good charging time |
+| `binary_sensor.tibber_is_cheapest_hour` | In cheapest hours (absolute minimum) | Priority scheduling |
+| `binary_sensor.tibber_is_expensive_hour` | In most expensive hours (top N) | Avoid usage / Discharge |
 | `binary_sensor.tibber_is_good_charging_time` | CHEAP or in cheapest hours | **Main charging trigger** |
 | `binary_sensor.tibber_is_below_average` | Below average price | Cost-effective |
 | `binary_sensor.tibber_is_in_best_consecutive_hours` | In best consecutive window | Optimal window |
-| `binary_sensor.tibber_battery_charging_recommended` | Below breakeven price | Battery charging |
+| `binary_sensor.tibber_is_cheap_power_now` | Below breakeven AND in cheap hours | Battery charging |
+| `binary_sensor.tibber_is_time_window_cheap_hour` | In cheapest hours of time window | **Custom time window charging** |
 
 ## Usage Examples
 
@@ -157,7 +162,35 @@ automation:
             Average: {{ state_attr('sensor.tibber_best_consecutive_hours', 'average_price') }}€/kWh
 ```
 
-### 4. Dashboard Card
+### 4. Electric Vehicle Charging in Time Window
+
+Perfect for overnight charging (17:00-07:00):
+
+```yaml
+automation:
+  - alias: "EV Charging Time Window"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.tibber_is_time_window_cheap_hour
+        to: "on"
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.ev_battery
+        below: 80
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.ev_charger
+      - service: notify.mobile_app
+        data:
+          title: "🔌 EV Charging Started"
+          message: >
+            Charging at {{ states('sensor.tibber_current_price') }}€/kWh
+            Time Window: {{ state_attr('sensor.tibber_time_window_cheapest_hours', 'time_window_start') }} -
+            {{ state_attr('sensor.tibber_time_window_cheapest_hours', 'time_window_end') }}
+```
+
+### 5. Dashboard Card
 
 ```yaml
 type: entities
@@ -181,6 +214,11 @@ entities:
     name: Bestes Zeitfenster
   - entity: sensor.tibber_battery_breakeven_price
     name: Batterie Break-Even
+  - type: divider
+  - entity: sensor.tibber_time_window_cheapest_hours
+    name: Günstigste Stunden (Zeitfenster)
+  - entity: binary_sensor.tibber_is_time_window_cheap_hour
+    name: Zeitfenster aktiv
 ```
 
 ## Services
@@ -253,6 +291,30 @@ Tibber API automatically calculates price levels based on daily average:
 | `api_key` | string | *required* | Your Tibber API token |
 | `battery_efficiency` | int | 75 | Battery efficiency percentage (1-100%) |
 | `hours_duration` | int | 3 | Hours duration for cheapest/expensive hours and consecutive window (1-24h) |
+| `time_window_start` | time | 17:00 | Start time for custom time window (HH:MM format) |
+| `time_window_end` | time | 07:00 | End time for custom time window (HH:MM format, can span midnight) |
+
+### Time Window Feature
+
+The **Time Window** feature allows you to define a specific time range (e.g., 17:00-07:00 for overnight) and automatically identifies the cheapest hours within that window. This is perfect for:
+
+- **Electric Vehicle Charging** - Charge during the cheapest overnight hours
+- **Heat Pumps** - Run during cost-effective evening/night periods
+- **Battery Storage** - Optimize charging cycles
+- **Smart Appliances** - Schedule energy-intensive tasks
+
+**How it works:**
+1. Configure your time window (default: 17:00-07:00)
+2. The system finds the N cheapest hours within that window (N = hours_duration)
+3. `binary_sensor.tibber_is_time_window_cheap_hour` turns ON during those hours
+4. Use this sensor in your automations for optimal cost savings
+
+**Example:** With time window 17:00-07:00 and hours_duration=3, the system might find:
+- 23:00 (0.1234€/kWh) ✅ Cheapest in window
+- 02:00 (0.1345€/kWh) ✅ 2nd cheapest
+- 03:00 (0.1456€/kWh) ✅ 3rd cheapest
+
+The binary sensor will be ON only during these 3 specific hours.
 
 ## Troubleshooting
 

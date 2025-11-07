@@ -33,7 +33,8 @@
         "description": "Manage your Tibber Extended settings",
         "menu_options": {
           "battery_settings": "Battery Settings",
-          "hours_duration": "Hours Duration"
+          "hours_duration": "Hours Duration",
+          "time_window": "Time Window"
         }
       },
       "battery_settings": {
@@ -43,7 +44,7 @@
           "battery_efficiency": "Battery Efficiency (%)"
         },
         "data_description": {
-          "battery_efficiency": "Total efficiency for charging/discharging (e.g. 80% = 20% loss)"
+          "battery_efficiency": "Total efficiency for charging/discharging (e.g. 90% = 10% loss)"
         }
       },
       "hours_duration": {
@@ -55,9 +56,35 @@
         "data_description": {
           "hours_duration": "Hours duration for calculations (1 to 24, default: 3)"
         }
+      },
+      "time_window": {
+        "title": "Time Window",
+        "description": "Configure the time window for cheap hours (e.g. for electric vehicle charging).\n\nCurrent: {current_start} - {current_end}",
+        "data": {
+          "time_window_start": "Start Time",
+          "time_window_end": "End Time"
+        },
+        "data_description": {
+          "time_window_start": "Start of time window (e.g. 17:00 for evening)",
+          "time_window_end": "End of time window (e.g. 07:00 for morning)"
+        }
       }
     },
-    "error": {},
+    "error": {
+      "invalid_time_format": "Invalid time format. Please use HH:MM (e.g. 17:00)."
+    },
     "abort": {}
+  },
+  "entity": {
+    "sensor": {
+      "time_window_cheapest_hours": {
+        "name": "Cheapest Hours in Time Window"
+      }
+    },
+    "binary_sensor": {
+      "is_time_window_cheap_hour": {
+        "name": "Is Cheap Hour in Time Window"
+      }
+    }
   }
 }

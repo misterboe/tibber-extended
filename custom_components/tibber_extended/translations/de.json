@@ -6,11 +6,13 @@
         "description": "Bitte gib deinen Tibber API-Schlüssel ein. Du findest ihn in der Tibber App unter Einstellungen > Entwickler.",
         "data": {
           "api_key": "Tibber API-Schlüssel",
-          "battery_efficiency": "Batterie-Effizienz (%)"
+          "battery_efficiency": "Batterie-Effizienz (%)",
+          "hours_duration": "Anzahl Stunden"
         },
         "data_description": {
           "api_key": "Dein persönlicher Tibber API Token",
-          "battery_efficiency": "Lade-/Entlade-Effizienz deiner Batterie (Standard: 75%)"
+          "battery_efficiency": "Lade-/Entlade-Effizienz deiner Batterie (Standard: 75%)",
+          "hours_duration": "Stundenanzahl für Berechnungen (1 bis 24, Standard: 3)"
         }
       }
     },
@@ -31,9 +33,8 @@
         "description": "Verwalte deine Tibber Extended Einstellungen",
         "menu_options": {
           "battery_settings": "Batterie-Einstellungen",
-          "add_window": "Zeitfenster hinzufügen",
-          "remove_window": "Zeitfenster entfernen",
-          "list_windows": "Zeitfenster anzeigen"
+          "hours_duration": "Stundenanzahl",
+          "time_window": "Zeitfenster"
         }
       },
       "battery_settings": {
@@ -43,45 +44,47 @@
           "battery_efficiency": "Batterie-Effizienz (%)"
         },
         "data_description": {
-          "battery_efficiency": "Gesamteffizienz beim Laden/Entladen (z.B. 80% = 20% Verlust)"
+          "battery_efficiency": "Gesamteffizienz beim Laden/Entladen (z.B. 90% = 10% Verlust)"
         }
       },
-      "add_window": {
-        "title": "Zeitfenster hinzufügen",
-        "description": "Erstelle ein neues optimiertes Zeitfenster für kostengünstigen Energieverbrauch.\n\nDas System findet automatisch die günstigsten zusammenhängenden Stunden.",
+      "hours_duration": {
+        "title": "Stundenanzahl",
+        "description": "Konfiguriere die Stundenanzahl für Berechnungen (günstigste/teuerste Stunden und beste zusammenhängende Zeitfenster).\n\nAktuell: {current_duration}h",
         "data": {
-          "name": "Name des Zeitfensters",
-          "duration": "Dauer (Stunden)",
-          "power_kw": "Leistung (kW, optional)"
+          "hours_duration": "Anzahl Stunden"
         },
         "data_description": {
-          "name": "Frei wählbarer Name (z.B. 'tesla_laden', '3h_billig')",
-          "duration": "Benötigte Stundenzahl (0.5 bis 24 Stunden)",
-          "power_kw": "Durchschnittliche Leistung für Kostenberechnung (optional)"
+          "hours_duration": "Stundenanzahl für Berechnungen (1 bis 24, Standard: 3)"
         }
       },
-      "remove_window": {
-        "title": "Zeitfenster entfernen",
-        "description": "Wähle ein Zeitfenster zum Löschen aus.",
+      "time_window": {
+        "title": "Zeitfenster",
+        "description": "Konfiguriere das Zeitfenster für günstige Stunden (z.B. für Laden von Elektroautos).\n\nAktuell: {current_start} - {current_end}",
         "data": {
-          "window_name": "Zeitfenster"
+          "time_window_start": "Start-Zeit",
+          "time_window_end": "End-Zeit"
         },
         "data_description": {
-          "window_name": "Das zu entfernende Zeitfenster"
+          "time_window_start": "Start des Zeitfensters (z.B. 17:00 für Abend)",
+          "time_window_end": "Ende des Zeitfensters (z.B. 07:00 für Morgen)"
         }
-      },
-      "list_windows": {
-        "title": "Konfigurierte Zeitfenster",
-        "description": "{windows_info}"
       }
     },
     "error": {
-      "invalid_name": "Ungültiger Name. Verwende nur Buchstaben, Zahlen, Unterstriche und Bindestriche.",
-      "already_exists": "Ein Zeitfenster mit diesem Namen existiert bereits."
+      "invalid_time_format": "Ungültiges Zeitformat. Bitte verwende HH:MM (z.B. 17:00)."
     },
-    "abort": {
-      "no_window_manager": "Window Manager nicht verfügbar. Bitte lade die Integration neu.",
-      "no_windows": "Keine Zeitfenster konfiguriert."
+    "abort": {}
+  },
+  "entity": {
+    "sensor": {
+      "time_window_cheapest_hours": {
+        "name": "Günstigste Stunden im Zeitfenster"
+      }
+    },
+    "binary_sensor": {
+      "is_time_window_cheap_hour": {
+        "name": "Ist günstige Stunde im Zeitfenster"
+      }
     }
   }
 }
