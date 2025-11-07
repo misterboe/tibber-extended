@@ -51,6 +51,8 @@ async def async_setup_entry(
                 TibberPriceDeviationAbsoluteSensor(coordinator, home_id),
                 # Battery Charging Optimization
                 TibberBatteryBreakevenPriceSensor(coordinator, home_id),
+                # Time Window Cheapest Hours
+                TibberTimeWindowCheapestHoursSensor(coordinator, home_id),
             ])
 
     async_add_entities(entities)
@@ -460,3 +462,43 @@ class TibberBatteryBreakevenPriceSensor(TibberSensorBase):
         if current_price <= breakeven:
             return "mdi:battery-charging-100"
         return "mdi:battery-alert"
+
+
+class TibberTimeWindowCheapestHoursSensor(TibberSensorBase):
+    """Sensor showing the cheapest hours within configured time window."""
+
+    def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, home_id, "time_window_cheapest_hours")
+
+    @property
+    def native_value(self) -> str | None:
+        """Return cheapest hours in time window as readable string."""
+        if not self._home_data or not self._home_data.get("time_window_cheapest_hours"):
+            return None
+
+        hours = []
+        for hour in self._home_data["time_window_cheapest_hours"]:
+            time_str = hour["start"].split("T")[1][:5]  # Extract HH:MM
+            price = hour["price"]
+            hours.append(f"{time_str} ({price:.4f}€)")
+
+        return ", ".join(hours)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return detailed hour information."""
+        if not self._home_data:
+            return {}
+
+        return {
+            "time_window_cheapest_hours": self._home_data.get("time_window_cheapest_hours", []),
+            "time_window_start": self.coordinator.time_window_start,
+            "time_window_end": self.coordinator.time_window_end,
+            "hours_count": int(self.coordinator.hours_duration),
+        }
+
+    @property
+    def icon(self) -> str:
+        """Return icon."""
+        return "mdi:clock-time-four"

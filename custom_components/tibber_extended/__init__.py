@@ -10,9 +10,13 @@ from .const import (
     CONF_API_KEY,
     CONF_BATTERY_EFFICIENCY,
     CONF_HOURS_DURATION,
+    CONF_TIME_WINDOW_END,
+    CONF_TIME_WINDOW_START,
     DEFAULT_BATTERY_EFFICIENCY,
     DEFAULT_HOURS_DURATION,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TIME_WINDOW_END,
+    DEFAULT_TIME_WINDOW_START,
     DOMAIN,
 )
 from .coordinator import TibberDataUpdateCoordinator
@@ -30,6 +34,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry,
             options={
                 CONF_HOURS_DURATION: DEFAULT_HOURS_DURATION,
+                CONF_TIME_WINDOW_START: DEFAULT_TIME_WINDOW_START,
+                CONF_TIME_WINDOW_END: DEFAULT_TIME_WINDOW_END,
+            },
+        )
+    # Migrate: Add time window settings to existing options if not present
+    elif CONF_TIME_WINDOW_START not in entry.options:
+        hass.config_entries.async_update_entry(
+            entry,
+            options={
+                **entry.options,
+                CONF_TIME_WINDOW_START: DEFAULT_TIME_WINDOW_START,
+                CONF_TIME_WINDOW_END: DEFAULT_TIME_WINDOW_END,
             },
         )
 
@@ -40,6 +56,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hours_duration = entry.options.get(
         CONF_HOURS_DURATION, DEFAULT_HOURS_DURATION
     )
+    time_window_start = entry.options.get(
+        CONF_TIME_WINDOW_START, DEFAULT_TIME_WINDOW_START
+    )
+    time_window_end = entry.options.get(
+        CONF_TIME_WINDOW_END, DEFAULT_TIME_WINDOW_END
+    )
 
     coordinator = TibberDataUpdateCoordinator(
         hass,
@@ -47,6 +69,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_interval=DEFAULT_SCAN_INTERVAL,
         battery_efficiency=battery_efficiency,
         hours_duration=hours_duration,
+        time_window_start=time_window_start,
+        time_window_end=time_window_end,
     )
 
     # Fetch initial data

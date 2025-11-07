@@ -61,11 +61,15 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         update_interval: int = 300,
         battery_efficiency: float = 86,
         hours_duration: int = 3,
+        time_window_start: str = "00:00",
+        time_window_end: str = "23:59",
     ) -> None:
         """Initialize the coordinator."""
         self.api_key = api_key
         self.battery_efficiency = battery_efficiency
         self.hours_duration = hours_duration
+        self.time_window_start = time_window_start
+        self.time_window_end = time_window_end
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -246,6 +250,13 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                         "battery_efficiency": self.battery_efficiency,
                         "battery_breakeven_price": round(breakeven_price, 4),
                         "battery_is_economical": battery_is_economical,
+                        # Time window cheapest hours
+                        "time_window_cheapest_hours": self._calculate_time_window_cheapest_hours(
+                            prices=price_info.get("today", []) + price_info.get("tomorrow", []),
+                            time_window_start=self.time_window_start,
+                            time_window_end=self.time_window_end,
+                            hours_count=int(self.hours_duration),
+                        ),
                     }
 
                     _LOGGER.debug(f"Successfully processed home {home_id}")
@@ -439,3 +450,81 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             "window_end": end_dt.isoformat(),
             "average_price": best["average_price"],
         }
+
+    def _calculate_time_window_cheapest_hours(
+        self,
+        prices: list[dict],
+        time_window_start: str,
+        time_window_end: str,
+        hours_count: int,
+    ) -> list[dict[str, Any]]:
+        """
+        Find the cheapest N hours within a specific time window.
+
+        Args:
+            prices: List of price dictionaries with 'total' and 'startsAt'
+            time_window_start: Start time in HH:MM format
+            time_window_end: End time in HH:MM format
+            hours_count: Number of cheapest hours to find
+
+        Returns:
+            List of cheapest hours in the time window (sorted by price)
+        """
+        from datetime import datetime, timezone
+
+        if not prices or hours_count <= 0:
+            return []
+
+        # Filter prices within the time window
+        filtered_prices = []
+
+        # Parse window times
+        start_hour, start_minute = map(int, time_window_start.split(':'))
+        end_hour, end_minute = map(int, time_window_end.split(':'))
+
+        # Check if window spans midnight
+        spans_midnight = (end_hour < start_hour) or (end_hour == start_hour and end_minute < start_minute)
+
+        for price_data in prices:
+            # Parse the timestamp
+            hour_time = datetime.fromisoformat(price_data["startsAt"].replace("Z", "+00:00"))
+            hour = hour_time.hour
+            minute = hour_time.minute
+
+            # Check if this hour is within the time window
+            in_window = False
+
+            if spans_midnight:
+                # Window like 17:00-07:00 (crosses midnight)
+                # Include if >= start OR <= end
+                if (hour > start_hour or (hour == start_hour and minute >= start_minute)):
+                    in_window = True
+                elif (hour < end_hour or (hour == end_hour and minute < end_minute)):
+                    in_window = True
+            else:
+                # Window like 08:00-16:00 (same day)
+                # Include if >= start AND < end
+                if (hour > start_hour or (hour == start_hour and minute >= start_minute)):
+                    if (hour < end_hour or (hour == end_hour and minute < end_minute)):
+                        in_window = True
+
+            if in_window:
+                filtered_prices.append(price_data)
+
+        # If no prices in window or window matches all day, use all prices
+        if not filtered_prices or (time_window_start == "00:00" and time_window_end == "23:59"):
+            filtered_prices = prices
+
+        # Sort by price and get the cheapest N hours
+        sorted_prices = sorted(filtered_prices, key=lambda x: x["total"])
+        cheapest = sorted_prices[:hours_count] if len(sorted_prices) >= hours_count else sorted_prices
+
+        # Return in simplified format like cheapest_hours
+        return [
+            {
+                "start": p["startsAt"],
+                "price": round(p["total"], 4),
+                "price_level": p.get("level", "NORMAL"),
+            }
+            for p in cheapest
+        ]

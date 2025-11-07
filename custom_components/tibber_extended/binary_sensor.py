@@ -48,6 +48,8 @@ async def async_setup_entry(
                 TibberBatteryChargingRecommendedSensor(coordinator, home_id),
                 # Single Cheapest Hour (absolute minimum)
                 TibberIsCheapestHourSensor(coordinator, home_id),
+                # Time Window Cheapest Hours
+                TibberIsTimeWindowCheapHourBinarySensor(coordinator, home_id),
             ])
 
     async_add_entities(entities)
@@ -583,4 +585,64 @@ class TibberIsCheapestHourSensor(TibberBinarySensorBase):
             "cheapest_price": cheapest_price,
             "cheapest_time": cheapest_time,
             "difference_to_cheapest": round(current_price - cheapest_price, 4),
+        }
+
+
+class TibberIsTimeWindowCheapHourBinarySensor(TibberBinarySensorBase):
+    """Binary sensor indicating if current hour is one of the cheapest in configured time window."""
+
+    def __init__(
+        self, coordinator: TibberDataUpdateCoordinator, home_id: str
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, home_id, "is_time_window_cheap_hour")
+
+    @property
+    def is_on(self) -> bool:
+        """Return true if current hour is in time window AND is one of the cheapest hours."""
+        if not self._home_data:
+            return False
+
+        # Get current time info
+        current_time = self._home_data["current"].get("startsAt")
+        if not current_time:
+            return False
+
+        # Get time window cheapest hours
+        time_window_cheapest = self._home_data.get("time_window_cheapest_hours", [])
+        if not time_window_cheapest:
+            return False
+
+        # Check if current time is one of the time window cheapest hours
+        for hour in time_window_cheapest:
+            if hour.get("start") == current_time:
+                return True
+
+        return False
+
+    @property
+    def icon(self) -> str:
+        """Return icon."""
+        return "mdi:clock-check" if self.is_on else "mdi:clock-outline"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional attributes."""
+        if not self._home_data:
+            return {}
+
+        time_window_cheapest = self._home_data.get("time_window_cheapest_hours", [])
+
+        # Format cheap hours for display
+        cheap_hours_formatted = []
+        for hour in time_window_cheapest:
+            time_str = hour["start"].split("T")[1][:5]
+            cheap_hours_formatted.append(f"{time_str} ({hour['price']:.4f}€)")
+
+        return {
+            "current_price": self._home_data["current"]["total"],
+            "time_window_start": self.coordinator.time_window_start,
+            "time_window_end": self.coordinator.time_window_end,
+            "time_window_cheapest_hours": cheap_hours_formatted,
+            "hours_count": int(self.coordinator.hours_duration),
         }

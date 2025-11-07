@@ -18,3 +18,9 @@ DEFAULT_HOURS_DURATION = 3  # Default to 3 consecutive hours (integer only)
 # Battery Configuration
 CONF_BATTERY_EFFICIENCY = "battery_efficiency"
 DEFAULT_BATTERY_EFFICIENCY = 75  # percentage, 0-100
+
+# Time Window Configuration
+CONF_TIME_WINDOW_START = "time_window_start"
+CONF_TIME_WINDOW_END = "time_window_end"
+DEFAULT_TIME_WINDOW_START = "17:00"
+DEFAULT_TIME_WINDOW_END = "07:00"

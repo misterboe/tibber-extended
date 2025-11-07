@@ -17,8 +17,12 @@ from .const import (
     CONF_API_KEY,
     CONF_BATTERY_EFFICIENCY,
     CONF_HOURS_DURATION,
+    CONF_TIME_WINDOW_END,
+    CONF_TIME_WINDOW_START,
     DEFAULT_BATTERY_EFFICIENCY,
     DEFAULT_HOURS_DURATION,
+    DEFAULT_TIME_WINDOW_END,
+    DEFAULT_TIME_WINDOW_START,
     DOMAIN,
     TIBBER_API_URL,
 )
@@ -117,6 +121,8 @@ class TibberConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data=user_input,  # API key and battery_efficiency
                     options={
                         CONF_HOURS_DURATION: hours_duration,
+                        CONF_TIME_WINDOW_START: DEFAULT_TIME_WINDOW_START,
+                        CONF_TIME_WINDOW_END: DEFAULT_TIME_WINDOW_END,
                     },
                 )
 
@@ -157,6 +163,7 @@ class TibberOptionsFlowHandler(config_entries.OptionsFlow):
             menu_options=[
                 "battery_settings",
                 "hours_duration",
+                "time_window",
             ],
         )
 
@@ -231,6 +238,68 @@ class TibberOptionsFlowHandler(config_entries.OptionsFlow):
             ),
             description_placeholders={
                 "current_efficiency": f"{current_efficiency}%",
+            },
+        )
+
+    async def async_step_time_window(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configure time window settings."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            # Validate time format
+            start_time = user_input[CONF_TIME_WINDOW_START]
+            end_time = user_input[CONF_TIME_WINDOW_END]
+
+            # Validate HH:MM format
+            import re
+            time_pattern = re.compile(r'^([01]\d|2[0-3]):([0-5]\d)$')
+
+            if not time_pattern.match(start_time):
+                errors[CONF_TIME_WINDOW_START] = "invalid_time_format"
+            elif not time_pattern.match(end_time):
+                errors[CONF_TIME_WINDOW_END] = "invalid_time_format"
+
+            if not errors:
+                # Return the updated options
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        **self.config_entry.options,
+                        CONF_TIME_WINDOW_START: start_time,
+                        CONF_TIME_WINDOW_END: end_time,
+                    },
+                )
+
+        # Get current time window from options
+        current_start = self.config_entry.options.get(
+            CONF_TIME_WINDOW_START, DEFAULT_TIME_WINDOW_START
+        )
+        current_end = self.config_entry.options.get(
+            CONF_TIME_WINDOW_END, DEFAULT_TIME_WINDOW_END
+        )
+
+        return self.async_show_form(
+            step_id="time_window",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_TIME_WINDOW_START, default=current_start
+                    ): selector.TimeSelector(
+                        selector.TimeSelectorConfig()
+                    ),
+                    vol.Required(
+                        CONF_TIME_WINDOW_END, default=current_end
+                    ): selector.TimeSelector(
+                        selector.TimeSelectorConfig()
+                    ),
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "current_start": current_start,
+                "current_end": current_end,
             },
         )
 
