@@ -80,6 +80,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         raise ConfigEntryNotReady(f"Unable to connect to Tibber API: {err}") from err
 
+    # Setup hourly refresh at the top of each hour (XX:00:05)
+    await coordinator.async_setup_hourly_refresh()
+
     # Store coordinator
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
@@ -101,7 +104,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        # Shutdown coordinator (cancels hourly refresh subscription)
+        await coordinator.async_shutdown()
 
         # Unregister services if this was the last entry
         if not hass.config_entries.async_entries(DOMAIN):

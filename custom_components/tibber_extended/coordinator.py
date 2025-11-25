@@ -1,13 +1,14 @@
 """Data update coordinator for Tibber Smart Control."""
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import re
 from typing import Any
 
 import aiohttp
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import TIBBER_API_URL
@@ -74,13 +75,45 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
+        self._hourly_unsub: callable | None = None
 
+        # Use longer backup interval (1 hour) since we trigger at full hour
+        # This serves as a safety net in case hourly trigger is missed
         super().__init__(
             hass,
             _LOGGER,
             name="Tibber Smart Control",
-            update_interval=timedelta(seconds=update_interval),
+            update_interval=timedelta(hours=1),
         )
+
+    async def async_setup_hourly_refresh(self) -> None:
+        """Set up hourly refresh at the top of each hour."""
+        # Cancel existing subscription if any
+        if self._hourly_unsub:
+            self._hourly_unsub()
+
+        @callback
+        def _hourly_refresh(now: datetime) -> None:
+            """Trigger refresh at the top of each hour."""
+            _LOGGER.debug("Hourly refresh triggered at %s", now)
+            self.hass.async_create_task(self.async_request_refresh())
+
+        # Schedule refresh at minute=0, second=5 of every hour
+        # Using second=5 to give Tibber API time to update after hour change
+        self._hourly_unsub = async_track_time_change(
+            self.hass,
+            _hourly_refresh,
+            minute=0,
+            second=5,
+        )
+        _LOGGER.info("Hourly refresh scheduled at XX:00:05")
+
+    async def async_shutdown(self) -> None:
+        """Shut down the coordinator."""
+        if self._hourly_unsub:
+            self._hourly_unsub()
+            self._hourly_unsub = None
+        await super().async_shutdown()
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch data from Tibber API for ALL homes."""
@@ -329,8 +362,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
 
         Returns the next hour where price is in top 25% cheapest.
         """
-        from datetime import datetime, timedelta, timezone
-
         if not today_prices:
             return None
 
@@ -429,8 +460,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         window_prices = best["window"]
 
         # Build simplified structure like cheapest_hours with price_level
-        from datetime import datetime, timedelta
-
         hours = [
             {
                 "start": p["startsAt"],
@@ -470,8 +499,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         Returns:
             List of cheapest hours in the time window (sorted by price)
         """
-        from datetime import datetime, timezone
-
         if not prices or hours_count <= 0:
             return []
 
