@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-11-26
+
+### Changed
+
+- **Hourly Refresh** - Data is now fetched at the top of each hour (XX:00:05) instead of a fixed 15-minute interval
+  - Aligns with Tibber's hourly price changes
+  - Sensors immediately reflect new prices when the hour changes
+  - 5-second delay gives Tibber API time to update
+  - 1-hour backup interval as safety net
+
+### Technical
+
+- Added `async_track_time_change` for precise hourly scheduling
+- Added `async_setup_hourly_refresh()` method to coordinator
+- Added `async_shutdown()` for proper cleanup on unload
+- Moved datetime imports to module level (removed redundant internal imports)
+
 ## [1.0.0] - 2025-11-07
 
 ### Added
@@ -105,4 +122,5 @@ The **Custom Time Window** feature allows you to:
 - Python 3.11 or newer
 - aiohttp >= 3.8.0
 
+[1.1.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.0
 [1.0.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.0.0
