@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-11-27
+
+### Fixed
+
+- **Critical: Sensors no longer become unavailable during API errors**
+  - Added `asyncio.TimeoutError` exception handler (was missing)
+  - Added catch-all exception handler for unexpected errors
+  - Overrode `available` property to check for cached data instead of `last_update_success`
+  - Sensors now stay available using cached data when API is temporarily unreachable
+
+- **Improved API reliability**
+  - Added retry logic with 3 attempts and exponential backoff (1s, 2s, 4s)
+  - Increased API timeout from 10s to 30s
+  - All error scenarios now properly fall back to cached data
+
+### Added
+
+- **Data freshness indicators** on `sensor.{home}_current_price`:
+  - `data_status`: "live" or "cached"
+  - `last_successful_update`: ISO timestamp of last successful API fetch
+  - `data_warning`: Warning message when using cached data
+
+### Technical
+
+- Added `_fetch_with_retry()` method with configurable retry count
+- Added `_last_successful_fetch` and `_using_cached_data` tracking variables
+- Added `_data_status_attributes` property to entity base class
+
 ## [1.1.0] - 2025-11-26
 
 ### Changed
@@ -122,5 +150,6 @@ The **Custom Time Window** feature allows you to:
 - Python 3.11 or newer
 - aiohttp >= 3.8.0
 
+[1.1.1]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.1
 [1.1.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.0
 [1.0.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.0.0

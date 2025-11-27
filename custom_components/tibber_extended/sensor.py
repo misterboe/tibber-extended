@@ -89,7 +89,7 @@ class TibberCurrentPriceSensor(TibberSensorBase):
             return {}
 
         # Primary attributes - exactly like REST sensor
-        return {
+        attrs = {
             # Core Tibber API data (1:1 wie REST sensor)
             "current": self._home_data.get("current"),
             "today": self._home_data.get("today", []),
@@ -117,6 +117,10 @@ class TibberCurrentPriceSensor(TibberSensorBase):
             # Best consecutive time window
             "best_3h_window": self._home_data.get("best_3h_window"),
         }
+
+        # Add data freshness status
+        attrs.update(self._data_status_attributes)
+        return attrs
 
 
 class TibberAveragePriceSensor(TibberSensorBase):

@@ -1,6 +1,8 @@
 """Base entity for Tibber Smart Control."""
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -34,6 +36,33 @@ class TibberEntityBase(CoordinatorEntity[TibberDataUpdateCoordinator]):
         if not self.coordinator.data:
             return None
         return self.coordinator.data.get(self._home_id)
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available.
+
+        Entity remains available as long as coordinator has data for this home,
+        even if last_update_success is False (prevents brief unavailability
+        during API timeouts when we still have valid cached data).
+        """
+        return self._home_data is not None
+
+    @property
+    def _data_status_attributes(self) -> dict[str, Any]:
+        """Return data freshness attributes (for use in extra_state_attributes)."""
+        attrs = {}
+
+        # Add info about data freshness
+        if self.coordinator._last_successful_fetch:
+            attrs["last_successful_update"] = self.coordinator._last_successful_fetch.isoformat()
+
+        if self.coordinator._using_cached_data:
+            attrs["data_status"] = "cached"
+            attrs["data_warning"] = "Using cached data due to API error"
+        else:
+            attrs["data_status"] = "live"
+
+        return attrs
 
     @property
     def device_info(self) -> DeviceInfo | None:

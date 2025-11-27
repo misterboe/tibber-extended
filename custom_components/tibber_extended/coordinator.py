@@ -1,4 +1,5 @@
 """Data update coordinator for Tibber Smart Control."""
+import asyncio
 from datetime import datetime, timedelta, timezone
 import logging
 import re
@@ -76,6 +77,8 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             "Content-Type": "application/json",
         }
         self._hourly_unsub: callable | None = None
+        self._last_successful_fetch: datetime | None = None
+        self._using_cached_data: bool = False
 
         # Use longer backup interval (1 hour) since we trigger at full hour
         # This serves as a safety net in case hourly trigger is missed
@@ -115,18 +118,51 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             self._hourly_unsub = None
         await super().async_shutdown()
 
+    async def _fetch_with_retry(self, max_retries: int = 3) -> dict | None:
+        """Fetch data from Tibber API with retry logic.
+
+        Args:
+            max_retries: Maximum number of retry attempts (default: 3)
+
+        Returns:
+            API response dict or None if all retries failed
+        """
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        TIBBER_API_URL,
+                        json={"query": GRAPHQL_QUERY},
+                        headers=self.headers,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as resp:
+                        resp.raise_for_status()
+                        return await resp.json()
+
+            except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                last_error = err
+                if attempt < max_retries - 1:
+                    # Exponential backoff: 1s, 2s, 4s
+                    wait_time = 2 ** attempt
+                    _LOGGER.warning(
+                        f"Tibber API request failed (attempt {attempt + 1}/{max_retries}): {err}. "
+                        f"Retrying in {wait_time}s..."
+                    )
+                    await asyncio.sleep(wait_time)
+                else:
+                    _LOGGER.warning(
+                        f"Tibber API request failed after {max_retries} attempts: {err}"
+                    )
+
+        # All retries failed
+        raise last_error if last_error else aiohttp.ClientError("Unknown error")
+
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         """Fetch data from Tibber API for ALL homes."""
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    TIBBER_API_URL,
-                    json={"query": GRAPHQL_QUERY},
-                    headers=self.headers,
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    resp.raise_for_status()
-                    response = await resp.json()
+            response = await self._fetch_with_retry(max_retries=3)
 
             if not response or "data" not in response:
                 # Keep last valid data on API errors
@@ -310,9 +346,13 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             if not all_homes_data:
                 if self.data:
                     _LOGGER.warning("No homes could be processed, keeping last valid data")
+                    self._using_cached_data = True
                     return self.data
                 raise UpdateFailed("Failed to process any homes from Tibber API")
 
+            # Success! Update tracking variables
+            self._last_successful_fetch = datetime.now(timezone.utc)
+            self._using_cached_data = False
             return all_homes_data
 
         except aiohttp.ClientResponseError as err:
@@ -321,20 +361,37 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             # Keep last valid data on HTTP errors
             if self.data:
                 _LOGGER.warning(f"HTTP error from Tibber API: {err}, keeping last valid data")
+                self._using_cached_data = True
                 return self.data
             raise UpdateFailed(f"HTTP error from Tibber API: {err}") from err
+        except asyncio.TimeoutError as err:
+            # Keep last valid data on timeout (critical fix for sensor unavailability)
+            if self.data:
+                _LOGGER.warning("Timeout connecting to Tibber API, keeping last valid data")
+                self._using_cached_data = True
+                return self.data
+            raise UpdateFailed("Timeout connecting to Tibber API") from err
         except aiohttp.ClientError as err:
             # Keep last valid data on connection errors (timeout, network issues)
             if self.data:
                 _LOGGER.warning(f"Error communicating with Tibber API: {err}, keeping last valid data")
+                self._using_cached_data = True
                 return self.data
             raise UpdateFailed(f"Error communicating with Tibber API: {err}") from err
         except (KeyError, ValueError) as err:
             # Keep last valid data on parsing errors
             if self.data:
                 _LOGGER.warning(f"Error parsing Tibber data: {err}, keeping last valid data")
+                self._using_cached_data = True
                 return self.data
             raise UpdateFailed(f"Error parsing Tibber data: {err}") from err
+        except Exception as err:
+            # Catch-all: keep last valid data on any unexpected error
+            if self.data:
+                _LOGGER.error(f"Unexpected error from Tibber API: {err}, keeping last valid data", exc_info=True)
+                self._using_cached_data = True
+                return self.data
+            raise UpdateFailed(f"Unexpected error from Tibber API: {err}") from err
 
     def _calculate_price_rank(self, current_price: float, all_prices: list[float]) -> int:
         """Calculate rank of current price (1 = cheapest, higher = more expensive)."""

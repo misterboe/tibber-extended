@@ -12,7 +12,8 @@ Smart energy price control with Tibber - optimized for automation and battery ma
 - 🕐 **Custom Time Window** - Find cheapest hours within specific time ranges (e.g., 17:00-07:00)
 - 🏠 **Multi-Home Support** - All Tibber homes automatically detected
 - 🌍 **Multilingual** - German and English translations
-- 🔄 **Smart Updates** - Every 15 minutes with error resilience
+- 🔄 **Hourly Updates** - Synced with Tibber's hourly price changes (XX:00:05)
+- 🛡️ **Resilient** - Retry logic, cached data fallback, never goes unavailable
 
 ## Installation
 
@@ -83,6 +84,8 @@ After installation, click **"Configure"** to access:
 - `cheapest_hours`, `most_expensive_hours`
 - `best_consecutive_hours` - Best consecutive hours window
 - `rank`, `percentile` - Current price ranking
+- `data_status` - "live" or "cached" (indicates if using cached data)
+- `last_successful_update` - ISO timestamp of last successful API fetch
 
 ### Binary Sensors (Automation Triggers)
 
@@ -278,9 +281,11 @@ Tibber API automatically calculates price levels based on daily average:
 
 ## Technical Details
 
-- **Update Interval:** 15 minutes
+- **Update Interval:** Hourly at XX:00:05 (synced with Tibber's price changes)
 - **API:** Tibber GraphQL API
-- **Data Retention:** Last valid data kept during API failures
+- **Timeout:** 30 seconds per request
+- **Retry Logic:** 3 attempts with exponential backoff (1s, 2s, 4s)
+- **Data Retention:** Last valid data kept during API failures (sensors never go unavailable)
 - **Requirements:** `aiohttp>=3.8.0`
 - **Home Assistant:** 2023.9.0 or newer
 
@@ -327,10 +332,17 @@ The binary sensor will be ON only during these 3 specific hours.
 
 ### Sensors show "unavailable"
 
-1. Verify internet connection
-2. Check if Tibber API key is still valid
-3. Restart Home Assistant
+**Since v1.1.1, sensors should never become unavailable** due to API errors - they use cached data instead. If you still see unavailable:
+
+1. Check the `data_status` attribute on `sensor.{home}_current_price`:
+   - `"live"` = Fresh data from API
+   - `"cached"` = Using cached data (API temporarily unavailable)
+2. Check `last_successful_update` attribute for the last successful fetch time
+3. Verify your Tibber API key is still valid
 4. Check Tibber API status at https://status.tibber.com/
+5. Check Home Assistant logs for errors: **Settings** → **System** → **Logs**
+
+**Note:** If upgrading from v1.1.0 or earlier, reload the integration to apply the fix.
 
 ### Tomorrow prices not available
 
