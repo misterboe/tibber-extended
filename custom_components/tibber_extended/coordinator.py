@@ -78,6 +78,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         }
         self._hourly_unsub: callable | None = None
         self._last_successful_fetch: datetime | None = None
+        self._last_api_response: dict | None = None
         self._using_cached_data: bool = False
 
         # Use longer backup interval (1 hour) since we trigger at full hour
@@ -352,6 +353,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Success! Update tracking variables
             self._last_successful_fetch = datetime.now(timezone.utc)
+            self._last_api_response = response
             self._using_cached_data = False
             return all_homes_data
 

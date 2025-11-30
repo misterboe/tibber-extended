@@ -1,6 +1,8 @@
 """Sensor platform for Tibber Smart Control."""
 from __future__ import annotations
 
+from datetime import datetime
+import json
 import logging
 from typing import Any
 
@@ -54,6 +56,12 @@ async def async_setup_entry(
                 # Time Window Cheapest Hours
                 TibberTimeWindowCheapestHoursSensor(coordinator, home_id),
             ])
+
+    # Global diagnostic sensors (not per-home)
+    entities.extend([
+        TibberLastApiUpdateSensor(coordinator),
+        TibberLastApiResponseSensor(coordinator),
+    ])
 
     async_add_entities(entities)
 
@@ -506,3 +514,88 @@ class TibberTimeWindowCheapestHoursSensor(TibberSensorBase):
     def icon(self) -> str:
         """Return icon."""
         return "mdi:clock-time-four"
+
+
+# ============================================================================
+# Diagnostic Sensors (Global - not per-home)
+# ============================================================================
+
+
+class TibberLastApiUpdateSensor(TibberSensorBase):
+    """Sensor showing when Tibber API was last successfully called."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator: TibberDataUpdateCoordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, None, "last_api_update")
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return timestamp of last successful API call."""
+        return self.coordinator._last_successful_fetch
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional diagnostic attributes."""
+        attrs = {
+            "using_cached_data": self.coordinator._using_cached_data,
+        }
+
+        if self.coordinator._last_successful_fetch:
+            attrs["last_success_iso"] = self.coordinator._last_successful_fetch.isoformat()
+
+        return attrs
+
+    @property
+    def icon(self) -> str:
+        """Return icon based on data freshness."""
+        if self.coordinator._using_cached_data:
+            return "mdi:cloud-off-outline"
+        return "mdi:cloud-check"
+
+
+class TibberLastApiResponseSensor(TibberSensorBase):
+    """Sensor containing the complete raw JSON response from Tibber API."""
+
+    def __init__(self, coordinator: TibberDataUpdateCoordinator) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, None, "last_api_response")
+
+    @property
+    def native_value(self) -> str | None:
+        """Return summary of API response."""
+        if not self.coordinator._last_api_response:
+            return None
+
+        response = self.coordinator._last_api_response
+        homes = response.get("data", {}).get("viewer", {}).get("homes", [])
+        homes_count = len(homes)
+
+        if self.coordinator._last_successful_fetch:
+            timestamp = self.coordinator._last_successful_fetch.strftime("%H:%M:%S")
+            return f"{homes_count} homes @ {timestamp}"
+
+        return f"{homes_count} homes"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return full raw JSON response in attributes."""
+        if not self.coordinator._last_api_response:
+            return {"raw_response": None}
+
+        response = self.coordinator._last_api_response
+        homes = response.get("data", {}).get("viewer", {}).get("homes", [])
+
+        return {
+            "raw_response": response,
+            "raw_response_json": json.dumps(response, indent=2),
+            "homes_count": len(homes),
+            "home_ids": [h.get("id") for h in homes],
+            "home_names": [h.get("appNickname") for h in homes],
+        }
+
+    @property
+    def icon(self) -> str:
+        """Return icon."""
+        return "mdi:code-json"

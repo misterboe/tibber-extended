@@ -5,7 +5,7 @@ Smart energy price control with Tibber - optimized for automation and battery ma
 ## Features
 
 - ✅ **Config Flow Setup** - Easy UI-based installation
-- 📊 **12 Sensors** - Complete price information and analytics
+- 📊 **14 Sensors** - Complete price information, analytics, and API diagnostics
 - 🔌 **12 Binary Sensors** - Direct automation triggers
 - 🔋 **Battery Optimization** - Configurable efficiency settings
 - ⏰ **Flexible Time Windows** - Configurable consecutive hours (1-24h)
@@ -75,6 +75,26 @@ After installation, click **"Configure"** to access:
 | `sensor.tibber_price_deviation_absolute` | Absolute deviation | EUR/kWh |
 | `sensor.tibber_battery_breakeven_price` | Economical charging threshold | EUR/kWh |
 | `sensor.tibber_time_window_cheapest_hours` | Cheapest hours in configured time window | Text |
+
+### Diagnostic Sensors (Global)
+
+These sensors provide API monitoring and debugging capabilities:
+
+| Entity ID | Description | Notes |
+|-----------|-------------|-------|
+| `sensor.tibber_extended_last_api_update` | Timestamp of last **successful** API call | Device class: timestamp |
+| `sensor.tibber_extended_last_api_response` | Raw API response summary | Contains full JSON in attributes |
+
+**Attributes on `sensor.tibber_extended_last_api_update`:**
+- `using_cached_data` - Boolean: true if using cached data due to API errors
+- `last_success_iso` - ISO timestamp of last successful fetch
+
+**Attributes on `sensor.tibber_extended_last_api_response`:**
+- `raw_response` - Complete raw JSON from Tibber API
+- `raw_response_json` - Pretty-printed JSON string
+- `homes_count` - Number of homes in response
+- `home_ids` - List of home IDs
+- `home_names` - List of home nicknames
 
 **Extra attributes on `sensor.tibber_current_price`:**
 - `current` - Full current price data (total, energy, tax, level, startsAt)

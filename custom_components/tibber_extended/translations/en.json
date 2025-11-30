@@ -79,6 +79,12 @@
     "sensor": {
       "time_window_cheapest_hours": {
         "name": "Cheapest Hours in Time Window"
+      },
+      "last_api_update": {
+        "name": "Last API Update"
+      },
+      "last_api_response": {
+        "name": "Last API Response"
       }
     },
     "binary_sensor": {

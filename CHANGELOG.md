@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-11-30
+
+### Added
+
+- **New diagnostic sensors for API monitoring:**
+  - `sensor.tibber_extended_last_api_update` - Shows timestamp when Tibber API was last SUCCESSFULLY called
+    - Device class: `timestamp`
+    - Attributes: `using_cached_data`, `last_success_iso`
+    - Icon changes based on data freshness (cloud-check vs cloud-off-outline)
+  - `sensor.tibber_extended_last_api_response` - Contains complete raw JSON response from Tibber API
+    - State: Summary (e.g., "3 homes @ 14:00:05")
+    - Attributes: `raw_response`, `raw_response_json`, `homes_count`, `home_ids`, `home_names`
+
+- **Global sensor support in entity base:**
+  - `TibberEntityBase` now supports both per-home and global sensors
+  - Global sensors use integration-level device ("Tibber Extended API")
+  - Per-home sensors continue to use home-specific devices
+
+### Technical
+
+- Coordinator now stores raw API response in `_last_api_response`
+- Entity base refactored to handle `home_id: str | None` (None for global sensors)
+- New device "Tibber Extended API" groups diagnostic sensors
+
 ## [1.1.2] - 2025-11-29
 
 ### Fixed
