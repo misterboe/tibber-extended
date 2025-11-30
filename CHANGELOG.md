@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-11-29
+
+### Fixed
+
+- **Critical: Time window calculation now correctly identifies the active window**
+  - Previously, overnight windows (e.g., 17:00-07:00) would incorrectly mix hours from different window instances
+  - At 02:00, the sensor would select evening hours (21:00, 23:00) as cheapest, even though those are 17+ hours in the future
+  - Now correctly calculates the CURRENT active window boundaries based on current time
+  - Example: At 02:00, window is "yesterday 17:00 - today 07:00" (not "today 17:00 - tomorrow 07:00")
+
+- **Fixed `calculate_best_time_window()` for overnight windows**
+  - Replaced broken string comparison with proper time window logic
+  - Now correctly handles time constraints that span midnight
+
+### Added
+
+- **4 new helper functions** for consistent time window handling:
+  - `_parse_tibber_timestamp()` - Parse Tibber API timestamps
+  - `_parse_time_window()` - Parse and validate HH:MM time windows
+  - `_is_time_in_window()` - Check if time is within a window
+  - `_get_active_window_boundaries()` - Calculate datetime boundaries of active window
+
+- **Input validation** for service parameters:
+  - `start_after` and `end_before` now validate HH:MM format
+
+### Changed
+
+- **Standardized return field naming**: `mean_price` → `average_price` for consistency
+- **Improved error handling**: All timestamp parsing now has try-except guards
+- **Debug logging**: Added logging for active window boundaries
+
+### Technical
+
+- Complete refactoring of time window logic using DRY principles
+- All 4 cheapest-hours functions now use shared helper functions
+- Defensive validation with fallback values for malformed time strings
+
 ## [1.1.1] - 2025-11-27
 
 ### Fixed
@@ -150,6 +187,7 @@ The **Custom Time Window** feature allows you to:
 - Python 3.11 or newer
 - aiohttp >= 3.8.0
 
+[1.1.2]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.2
 [1.1.1]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.1
 [1.1.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.0
 [1.0.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.0.0

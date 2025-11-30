@@ -408,6 +408,197 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     return i + 1
             return len(sorted_prices)
 
+    # ==========================================================================
+    # Time Window Helper Functions
+    # ==========================================================================
+
+    def _parse_tibber_timestamp(self, timestamp: str) -> datetime:
+        """Parse Tibber API timestamp to timezone-aware datetime.
+
+        Args:
+            timestamp: ISO format timestamp from Tibber API
+
+        Returns:
+            Timezone-aware datetime object
+        """
+        return datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+
+    def _parse_time_window(
+        self, window_start: str, window_end: str
+    ) -> tuple[int, int, int, int, bool]:
+        """Parse time window and determine if it spans midnight.
+
+        Args:
+            window_start: Start time in HH:MM format
+            window_end: End time in HH:MM format
+
+        Returns:
+            Tuple of (start_hour, start_minute, end_hour, end_minute, spans_midnight)
+        """
+        # Validate and parse with fallback
+        time_pattern = re.compile(r'^([01]\d|2[0-3]):([0-5]\d)$')
+
+        if not time_pattern.match(window_start):
+            _LOGGER.warning(f"Invalid time_window_start format: {window_start}, using 00:00")
+            start_hour, start_minute = 0, 0
+        else:
+            start_hour, start_minute = map(int, window_start.split(':'))
+
+        if not time_pattern.match(window_end):
+            _LOGGER.warning(f"Invalid time_window_end format: {window_end}, using 23:59")
+            end_hour, end_minute = 23, 59
+        else:
+            end_hour, end_minute = map(int, window_end.split(':'))
+
+        # Check if window spans midnight (e.g., 17:00-07:00)
+        spans_midnight = (end_hour < start_hour) or (
+            end_hour == start_hour and end_minute < start_minute
+        )
+
+        return start_hour, start_minute, end_hour, end_minute, spans_midnight
+
+    def _is_time_in_window(
+        self,
+        hour: int,
+        minute: int,
+        start_hour: int,
+        start_minute: int,
+        end_hour: int,
+        end_minute: int,
+        spans_midnight: bool,
+    ) -> bool:
+        """Check if a time is within a time window.
+
+        Args:
+            hour: Hour to check (0-23)
+            minute: Minute to check (0-59)
+            start_hour, start_minute: Window start time
+            end_hour, end_minute: Window end time
+            spans_midnight: True if window crosses midnight
+
+        Returns:
+            True if time is within the window
+        """
+        if spans_midnight:
+            # Window like 17:00-07:00 (crosses midnight)
+            # Include if >= start OR < end
+            in_evening = hour > start_hour or (hour == start_hour and minute >= start_minute)
+            in_morning = hour < end_hour or (hour == end_hour and minute < end_minute)
+            return in_evening or in_morning
+        else:
+            # Window like 08:00-16:00 (same day)
+            # Include if >= start AND < end
+            after_start = hour > start_hour or (hour == start_hour and minute >= start_minute)
+            before_end = hour < end_hour or (hour == end_hour and minute < end_minute)
+            return after_start and before_end
+
+    def _get_active_window_boundaries(
+        self,
+        now: datetime,
+        start_hour: int,
+        start_minute: int,
+        end_hour: int,
+        end_minute: int,
+        spans_midnight: bool,
+    ) -> tuple[datetime, datetime]:
+        """Calculate the datetime boundaries of the active time window.
+
+        For overnight windows (e.g., 17:00-07:00), determines whether we're
+        currently IN a window (use current window) or OUTSIDE (use next window).
+
+        Args:
+            now: Current datetime (timezone-aware)
+            start_hour, start_minute: Window start time
+            end_hour, end_minute: Window end time
+            spans_midnight: True if window crosses midnight
+
+        Returns:
+            Tuple of (window_start_datetime, window_end_datetime)
+        """
+        today = now.date()
+        tz = now.tzinfo
+
+        if spans_midnight:
+            # Overnight window (e.g., 17:00-07:00)
+            current_hour = now.hour
+            current_minute = now.minute
+
+            # Check which part of the window we're in (or if we're outside)
+            in_evening = current_hour > start_hour or (
+                current_hour == start_hour and current_minute >= start_minute
+            )
+            in_morning = current_hour < end_hour or (
+                current_hour == end_hour and current_minute < end_minute
+            )
+
+            if in_evening:
+                # We're in evening part: Window is TODAY start → TOMORROW end
+                window_start = datetime(
+                    today.year, today.month, today.day,
+                    start_hour, start_minute, tzinfo=tz
+                )
+                tomorrow = today + timedelta(days=1)
+                window_end = datetime(
+                    tomorrow.year, tomorrow.month, tomorrow.day,
+                    end_hour, end_minute, tzinfo=tz
+                )
+            elif in_morning:
+                # We're in morning part: Window is YESTERDAY start → TODAY end
+                yesterday = today - timedelta(days=1)
+                window_start = datetime(
+                    yesterday.year, yesterday.month, yesterday.day,
+                    start_hour, start_minute, tzinfo=tz
+                )
+                window_end = datetime(
+                    today.year, today.month, today.day,
+                    end_hour, end_minute, tzinfo=tz
+                )
+            else:
+                # We're outside the window (between end and start)
+                # Use the NEXT upcoming window: TODAY start → TOMORROW end
+                window_start = datetime(
+                    today.year, today.month, today.day,
+                    start_hour, start_minute, tzinfo=tz
+                )
+                tomorrow = today + timedelta(days=1)
+                window_end = datetime(
+                    tomorrow.year, tomorrow.month, tomorrow.day,
+                    end_hour, end_minute, tzinfo=tz
+                )
+        else:
+            # Same-day window (e.g., 08:00-16:00)
+            current_hour = now.hour
+            current_minute = now.minute
+
+            # Check if we're past today's window end
+            past_end = current_hour > end_hour or (
+                current_hour == end_hour and current_minute >= end_minute
+            )
+
+            if past_end:
+                # Use tomorrow's window
+                tomorrow = today + timedelta(days=1)
+                window_start = datetime(
+                    tomorrow.year, tomorrow.month, tomorrow.day,
+                    start_hour, start_minute, tzinfo=tz
+                )
+                window_end = datetime(
+                    tomorrow.year, tomorrow.month, tomorrow.day,
+                    end_hour, end_minute, tzinfo=tz
+                )
+            else:
+                # Use today's window
+                window_start = datetime(
+                    today.year, today.month, today.day,
+                    start_hour, start_minute, tzinfo=tz
+                )
+                window_end = datetime(
+                    today.year, today.month, today.day,
+                    end_hour, end_minute, tzinfo=tz
+                )
+
+        return window_start, window_end
+
     def _calculate_next_cheap_window(
         self,
         today_prices: list[dict],
@@ -434,7 +625,10 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         now = datetime.now(timezone.utc)
 
         for price_data in all_prices:
-            hour_time = datetime.fromisoformat(price_data["startsAt"].replace("Z", "+00:00"))
+            try:
+                hour_time = self._parse_tibber_timestamp(price_data["startsAt"])
+            except (ValueError, KeyError):
+                continue
 
             # Skip past hours
             if hour_time <= now:
@@ -447,7 +641,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                 return {
                     "start": price_data["startsAt"],
                     "end": end_time.isoformat(),
-                    "mean_price": round(price_data["total"], 4),
+                    "average_price": round(price_data["total"], 4),
                     "price_level": price_data.get("level", "NORMAL"),
                 }
 
@@ -481,19 +675,61 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                 "average_price": 0,
             }
 
+        # Parse time constraints if provided (supports overnight windows)
+        constraint_params = None
+        if start_after and end_before:
+            constraint_params = self._parse_time_window(start_after, end_before)
+
         windows = []
 
         for i in range(len(prices) - duration_hours + 1):
             window = prices[i:i + duration_hours]
 
             # Check time constraints if provided
-            if start_after or end_before:
-                start_time = window[0]["startsAt"].split("T")[1][:5]
-                end_time = window[-1]["startsAt"].split("T")[1][:5]
+            if constraint_params:
+                start_h, start_m, end_h, end_m, spans_midnight = constraint_params
 
-                if start_after and start_time < start_after:
+                try:
+                    # Get the hour of the first price in this window
+                    first_hour_time = self._parse_tibber_timestamp(window[0]["startsAt"])
+                    # Get the hour of the last price in this window
+                    last_hour_time = self._parse_tibber_timestamp(window[-1]["startsAt"])
+
+                    # Check if window start is within the time constraint
+                    start_in_window = self._is_time_in_window(
+                        first_hour_time.hour, first_hour_time.minute,
+                        start_h, start_m, end_h, end_m, spans_midnight
+                    )
+                    # Check if window end is within the time constraint
+                    end_in_window = self._is_time_in_window(
+                        last_hour_time.hour, last_hour_time.minute,
+                        start_h, start_m, end_h, end_m, spans_midnight
+                    )
+
+                    # Both start and end must be within constraints
+                    if not (start_in_window and end_in_window):
+                        continue
+                except (ValueError, KeyError):
                     continue
-                if end_before and end_time >= end_before:
+            elif start_after or end_before:
+                # Fallback for single constraint (legacy behavior)
+                try:
+                    first_hour_time = self._parse_tibber_timestamp(window[0]["startsAt"])
+                    last_hour_time = self._parse_tibber_timestamp(window[-1]["startsAt"])
+
+                    if start_after:
+                        start_h, start_m = map(int, start_after.split(':'))
+                        if first_hour_time.hour < start_h or (
+                            first_hour_time.hour == start_h and first_hour_time.minute < start_m
+                        ):
+                            continue
+                    if end_before:
+                        end_h, end_m = map(int, end_before.split(':'))
+                        if last_hour_time.hour > end_h or (
+                            last_hour_time.hour == end_h and last_hour_time.minute >= end_m
+                        ):
+                            continue
+                except (ValueError, KeyError):
                     continue
 
             avg_price = sum(p["total"] for p in window) / duration_hours
@@ -526,9 +762,17 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             for p in window_prices
         ]
 
-        # Calculate end time (3 hours after start)
-        start_dt = datetime.fromisoformat(window_prices[0]["startsAt"].replace("Z", "+00:00"))
-        end_dt = start_dt + timedelta(hours=duration_hours)
+        # Calculate end time
+        try:
+            start_dt = self._parse_tibber_timestamp(window_prices[0]["startsAt"])
+            end_dt = start_dt + timedelta(hours=duration_hours)
+        except (ValueError, KeyError):
+            return {
+                "hours": hours,
+                "window_start": window_prices[0]["startsAt"] if window_prices else None,
+                "window_end": None,
+                "average_price": best["average_price"],
+            }
 
         return {
             "hours": hours,
@@ -545,7 +789,13 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         hours_count: int,
     ) -> list[dict[str, Any]]:
         """
-        Find the cheapest N hours within a specific time window.
+        Find the cheapest N hours within the CURRENT or NEXT active time window.
+
+        This function calculates the actual datetime boundaries of the active window
+        based on the current time, then filters prices to only include hours within
+        that specific window instance. This prevents mixing hours from different
+        window instances (e.g., mixing tonight's evening hours with tomorrow's
+        morning hours).
 
         Args:
             prices: List of price dictionaries with 'total' and 'startsAt'
@@ -559,45 +809,54 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         if not prices or hours_count <= 0:
             return []
 
-        # Filter prices within the time window
+        # Special case: all-day window bypasses filtering
+        if time_window_start == "00:00" and time_window_end == "23:59":
+            sorted_prices = sorted(prices, key=lambda x: x["total"])
+            cheapest = sorted_prices[:hours_count] if len(sorted_prices) >= hours_count else sorted_prices
+            return [
+                {
+                    "start": p["startsAt"],
+                    "price": round(p["total"], 4),
+                    "price_level": p.get("level", "NORMAL"),
+                }
+                for p in cheapest
+            ]
+
+        # Parse time window using helper (with validation)
+        start_hour, start_minute, end_hour, end_minute, spans_midnight = self._parse_time_window(
+            time_window_start, time_window_end
+        )
+
+        # Get current time and calculate active window boundaries
+        now = datetime.now(timezone.utc)
+        window_start_dt, window_end_dt = self._get_active_window_boundaries(
+            now, start_hour, start_minute, end_hour, end_minute, spans_midnight
+        )
+
+        _LOGGER.debug(
+            f"Time window {time_window_start}-{time_window_end}: "
+            f"Active window is {window_start_dt.isoformat()} to {window_end_dt.isoformat()}"
+        )
+
+        # Filter prices within the active window boundaries (using full datetime comparison)
         filtered_prices = []
-
-        # Parse window times
-        start_hour, start_minute = map(int, time_window_start.split(':'))
-        end_hour, end_minute = map(int, time_window_end.split(':'))
-
-        # Check if window spans midnight
-        spans_midnight = (end_hour < start_hour) or (end_hour == start_hour and end_minute < start_minute)
-
         for price_data in prices:
-            # Parse the timestamp
-            hour_time = datetime.fromisoformat(price_data["startsAt"].replace("Z", "+00:00"))
-            hour = hour_time.hour
-            minute = hour_time.minute
+            try:
+                hour_time = self._parse_tibber_timestamp(price_data["startsAt"])
 
-            # Check if this hour is within the time window
-            in_window = False
+                # Include if within the calculated window boundaries
+                if window_start_dt <= hour_time < window_end_dt:
+                    filtered_prices.append(price_data)
+            except (ValueError, KeyError) as e:
+                _LOGGER.warning(f"Failed to parse price data: {e}")
+                continue
 
-            if spans_midnight:
-                # Window like 17:00-07:00 (crosses midnight)
-                # Include if >= start OR <= end
-                if (hour > start_hour or (hour == start_hour and minute >= start_minute)):
-                    in_window = True
-                elif (hour < end_hour or (hour == end_hour and minute < end_minute)):
-                    in_window = True
-            else:
-                # Window like 08:00-16:00 (same day)
-                # Include if >= start AND < end
-                if (hour > start_hour or (hour == start_hour and minute >= start_minute)):
-                    if (hour < end_hour or (hour == end_hour and minute < end_minute)):
-                        in_window = True
-
-            if in_window:
-                filtered_prices.append(price_data)
-
-        # If no prices in window or window matches all day, use all prices
-        if not filtered_prices or (time_window_start == "00:00" and time_window_end == "23:59"):
-            filtered_prices = prices
+        # If no prices in window, return empty (don't fall back to all prices)
+        if not filtered_prices:
+            _LOGGER.debug(
+                f"No prices found in window {window_start_dt.isoformat()} to {window_end_dt.isoformat()}"
+            )
+            return []
 
         # Sort by price and get the cheapest N hours
         sorted_prices = sorted(filtered_prices, key=lambda x: x["total"])

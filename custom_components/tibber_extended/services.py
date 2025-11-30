@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -14,13 +15,26 @@ from .coordinator import TibberDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+# Time format validator (HH:MM)
+TIME_PATTERN = re.compile(r'^([01]\d|2[0-3]):([0-5]\d)$')
+
+
+def time_format(value: Any) -> str:
+    """Validate time format HH:MM."""
+    if not isinstance(value, str):
+        raise vol.Invalid(f"Expected string, got {type(value).__name__}")
+    if not TIME_PATTERN.match(value):
+        raise vol.Invalid(f"Invalid time format: {value}. Expected HH:MM (00:00-23:59)")
+    return value
+
+
 # Service schemas
 SERVICE_CALCULATE_BEST_TIME_WINDOW_SCHEMA = vol.Schema(
     {
         vol.Required("duration_hours"): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
         vol.Optional("power_kw"): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=50.0)),
-        vol.Optional("start_after"): cv.string,  # HH:MM format
-        vol.Optional("end_before"): cv.string,   # HH:MM format
+        vol.Optional("start_after"): time_format,  # HH:MM format with validation
+        vol.Optional("end_before"): time_format,   # HH:MM format with validation
         vol.Optional("include_tomorrow", default=False): cv.boolean,
     }
 )
