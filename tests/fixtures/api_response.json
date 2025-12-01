@@ -1,0 +1,194 @@
+{
+  "data": {
+    "viewer": {
+      "homes": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "appNickname": "TestHome",
+          "currentSubscription": {
+            "priceInfo": {
+              "current": {
+                "total": 0.3611,
+                "energy": 0.1279,
+                "tax": 0.2332,
+                "startsAt": "2025-12-01T07:00:00.000+01:00",
+                "level": "NORMAL"
+              },
+              "today": [
+                {
+                  "total": 0.3136,
+                  "energy": 0.088,
+                  "tax": 0.2256,
+                  "startsAt": "2025-12-01T00:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3113,
+                  "energy": 0.086,
+                  "tax": 0.2253,
+                  "startsAt": "2025-12-01T01:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3057,
+                  "energy": 0.0814,
+                  "tax": 0.2243,
+                  "startsAt": "2025-12-01T02:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3102,
+                  "energy": 0.0851,
+                  "tax": 0.2251,
+                  "startsAt": "2025-12-01T03:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3044,
+                  "energy": 0.0802,
+                  "tax": 0.2242,
+                  "startsAt": "2025-12-01T04:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3146,
+                  "energy": 0.0888,
+                  "tax": 0.2258,
+                  "startsAt": "2025-12-01T05:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3144,
+                  "energy": 0.0886,
+                  "tax": 0.2258,
+                  "startsAt": "2025-12-01T06:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3611,
+                  "energy": 0.1279,
+                  "tax": 0.2332,
+                  "startsAt": "2025-12-01T07:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3747,
+                  "energy": 0.1394,
+                  "tax": 0.2353,
+                  "startsAt": "2025-12-01T08:00:00.000+01:00",
+                  "level": "EXPENSIVE"
+                },
+                {
+                  "total": 0.334,
+                  "energy": 0.1051,
+                  "tax": 0.2289,
+                  "startsAt": "2025-12-01T09:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3204,
+                  "energy": 0.0937,
+                  "tax": 0.2267,
+                  "startsAt": "2025-12-01T10:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3112,
+                  "energy": 0.086,
+                  "tax": 0.2252,
+                  "startsAt": "2025-12-01T11:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3101,
+                  "energy": 0.085,
+                  "tax": 0.2251,
+                  "startsAt": "2025-12-01T12:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3161,
+                  "energy": 0.0901,
+                  "tax": 0.226,
+                  "startsAt": "2025-12-01T13:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3365,
+                  "energy": 0.1072,
+                  "tax": 0.2293,
+                  "startsAt": "2025-12-01T14:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3522,
+                  "energy": 0.1203,
+                  "tax": 0.2319,
+                  "startsAt": "2025-12-01T15:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3434,
+                  "energy": 0.113,
+                  "tax": 0.2304,
+                  "startsAt": "2025-12-01T16:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3213,
+                  "energy": 0.0944,
+                  "tax": 0.2269,
+                  "startsAt": "2025-12-01T17:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3148,
+                  "energy": 0.089,
+                  "tax": 0.2258,
+                  "startsAt": "2025-12-01T18:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3122,
+                  "energy": 0.0868,
+                  "tax": 0.2254,
+                  "startsAt": "2025-12-01T19:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.3069,
+                  "energy": 0.0823,
+                  "tax": 0.2246,
+                  "startsAt": "2025-12-01T20:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.2993,
+                  "energy": 0.076,
+                  "tax": 0.2233,
+                  "startsAt": "2025-12-01T21:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.2999,
+                  "energy": 0.0764,
+                  "tax": 0.2235,
+                  "startsAt": "2025-12-01T22:00:00.000+01:00",
+                  "level": "NORMAL"
+                },
+                {
+                  "total": 0.2944,
+                  "energy": 0.0718,
+                  "tax": 0.2226,
+                  "startsAt": "2025-12-01T23:00:00.000+01:00",
+                  "level": "NORMAL"
+                }
+              ],
+              "tomorrow": []
+            }
+          }
+        }
+      ]
+    }
+  }
+}

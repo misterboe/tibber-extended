@@ -16,11 +16,17 @@ from homeassistant.helpers import selector
 from .const import (
     CONF_API_KEY,
     CONF_BATTERY_EFFICIENCY,
+    CONF_CALCULATION_HOUR,
     CONF_HOURS_DURATION,
+    CONF_REFRESH_MINUTE,
+    CONF_REFRESH_SECOND,
     CONF_TIME_WINDOW_END,
     CONF_TIME_WINDOW_START,
     DEFAULT_BATTERY_EFFICIENCY,
+    DEFAULT_CALCULATION_HOUR,
     DEFAULT_HOURS_DURATION,
+    DEFAULT_REFRESH_MINUTE,
+    DEFAULT_REFRESH_SECOND,
     DEFAULT_TIME_WINDOW_END,
     DEFAULT_TIME_WINDOW_START,
     DOMAIN,
@@ -123,6 +129,9 @@ class TibberConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_HOURS_DURATION: hours_duration,
                         CONF_TIME_WINDOW_START: DEFAULT_TIME_WINDOW_START,
                         CONF_TIME_WINDOW_END: DEFAULT_TIME_WINDOW_END,
+                        CONF_REFRESH_MINUTE: DEFAULT_REFRESH_MINUTE,
+                        CONF_REFRESH_SECOND: DEFAULT_REFRESH_SECOND,
+                        CONF_CALCULATION_HOUR: DEFAULT_CALCULATION_HOUR,
                     },
                 )
 
@@ -164,6 +173,8 @@ class TibberOptionsFlowHandler(config_entries.OptionsFlow):
                 "battery_settings",
                 "hours_duration",
                 "time_window",
+                "calculation_window",
+                "refresh_timing",
             ],
         )
 
@@ -300,6 +311,100 @@ class TibberOptionsFlowHandler(config_entries.OptionsFlow):
             description_placeholders={
                 "current_start": current_start,
                 "current_end": current_end,
+            },
+        )
+
+    async def async_step_calculation_window(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configure calculation window settings."""
+        if user_input is not None:
+            # Reload needed to apply the new calculation window
+            new_options = {
+                **self.config_entry.options,
+                CONF_CALCULATION_HOUR: user_input[CONF_CALCULATION_HOUR],
+            }
+            # Update and reload
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                options=new_options,
+            )
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            return self.async_create_entry(title="", data=new_options)
+
+        # Get current calculation hour from options
+        current_hour = self.config_entry.options.get(
+            CONF_CALCULATION_HOUR, DEFAULT_CALCULATION_HOUR
+        )
+
+        return self.async_show_form(
+            step_id="calculation_window",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_CALCULATION_HOUR, default=int(current_hour)
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0, max=23, mode=selector.NumberSelectorMode.BOX
+                        )
+                    ),
+                }
+            ),
+            description_placeholders={
+                "current_hour": f"{int(current_hour):02d}:00",
+            },
+        )
+
+    async def async_step_refresh_timing(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configure refresh timing settings."""
+        if user_input is not None:
+            # Reload needed to apply the new timing
+            new_options = {
+                **self.config_entry.options,
+                CONF_REFRESH_MINUTE: user_input[CONF_REFRESH_MINUTE],
+                CONF_REFRESH_SECOND: user_input[CONF_REFRESH_SECOND],
+            }
+            # Update and reload
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                options=new_options,
+            )
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            return self.async_create_entry(title="", data=new_options)
+
+        # Get current refresh timing from options
+        current_minute = self.config_entry.options.get(
+            CONF_REFRESH_MINUTE, DEFAULT_REFRESH_MINUTE
+        )
+        current_second = self.config_entry.options.get(
+            CONF_REFRESH_SECOND, DEFAULT_REFRESH_SECOND
+        )
+
+        return self.async_show_form(
+            step_id="refresh_timing",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_REFRESH_MINUTE, default=int(current_minute)
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0, max=59, mode=selector.NumberSelectorMode.BOX
+                        )
+                    ),
+                    vol.Required(
+                        CONF_REFRESH_SECOND, default=int(current_second)
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0, max=59, mode=selector.NumberSelectorMode.BOX
+                        )
+                    ),
+                }
+            ),
+            description_placeholders={
+                "current_minute": f"{int(current_minute)}",
+                "current_second": f"{int(current_second)}",
             },
         )
 

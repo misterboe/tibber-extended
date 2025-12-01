@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-import json
 import logging
 from typing import Any
 
@@ -14,6 +13,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .coordinator import TibberDataUpdateCoordinator
@@ -60,7 +60,6 @@ async def async_setup_entry(
     # Global diagnostic sensors (not per-home)
     entities.extend([
         TibberLastApiUpdateSensor(coordinator),
-        TibberLastApiResponseSensor(coordinator),
     ])
 
     async_add_entities(entities)
@@ -76,7 +75,6 @@ class TibberCurrentPriceSensor(TibberSensorBase):
     """Sensor for current electricity price."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "EUR/kWh"
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
@@ -123,7 +121,7 @@ class TibberCurrentPriceSensor(TibberSensorBase):
             "next_cheap_window": self._home_data.get("next_cheap_window"),
 
             # Best consecutive time window
-            "best_3h_window": self._home_data.get("best_3h_window"),
+            "best_consecutive_hours": self._home_data.get("best_consecutive_hours"),
         }
 
         # Add data freshness status
@@ -135,7 +133,6 @@ class TibberAveragePriceSensor(TibberSensorBase):
     """Sensor for average price today."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "EUR/kWh"
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
@@ -154,7 +151,6 @@ class TibberMinPriceSensor(TibberSensorBase):
     """Sensor for minimum price today."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "EUR/kWh"
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
@@ -173,7 +169,6 @@ class TibberMaxPriceSensor(TibberSensorBase):
     """Sensor for maximum price today."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "EUR/kWh"
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
@@ -395,7 +390,6 @@ class TibberPriceDeviationAbsoluteSensor(TibberSensorBase):
     """Sensor showing absolute deviation from average price."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "EUR/kWh"
 
     def __init__(self, coordinator: TibberDataUpdateCoordinator, home_id: str) -> None:
@@ -426,7 +420,6 @@ class TibberBatteryBreakevenPriceSensor(TibberSensorBase):
     """Sensor showing the maximum price at which battery charging is economical."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "EUR/kWh"
 
     def __init__(
@@ -543,7 +536,9 @@ class TibberLastApiUpdateSensor(TibberSensorBase):
         }
 
         if self.coordinator._last_successful_fetch:
-            attrs["last_success_iso"] = self.coordinator._last_successful_fetch.isoformat()
+            local_time = dt_util.as_local(self.coordinator._last_successful_fetch)
+            attrs["last_success_utc"] = self.coordinator._last_successful_fetch.isoformat()
+            attrs["last_success_local"] = local_time.isoformat()
 
         return attrs
 
@@ -555,47 +550,3 @@ class TibberLastApiUpdateSensor(TibberSensorBase):
         return "mdi:cloud-check"
 
 
-class TibberLastApiResponseSensor(TibberSensorBase):
-    """Sensor containing the complete raw JSON response from Tibber API."""
-
-    def __init__(self, coordinator: TibberDataUpdateCoordinator) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator, None, "last_api_response")
-
-    @property
-    def native_value(self) -> str | None:
-        """Return summary of API response."""
-        if not self.coordinator._last_api_response:
-            return None
-
-        response = self.coordinator._last_api_response
-        homes = response.get("data", {}).get("viewer", {}).get("homes", [])
-        homes_count = len(homes)
-
-        if self.coordinator._last_successful_fetch:
-            timestamp = self.coordinator._last_successful_fetch.strftime("%H:%M:%S")
-            return f"{homes_count} homes @ {timestamp}"
-
-        return f"{homes_count} homes"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return full raw JSON response in attributes."""
-        if not self.coordinator._last_api_response:
-            return {"raw_response": None}
-
-        response = self.coordinator._last_api_response
-        homes = response.get("data", {}).get("viewer", {}).get("homes", [])
-
-        return {
-            "raw_response": response,
-            "raw_response_json": json.dumps(response, indent=2),
-            "homes_count": len(homes),
-            "home_ids": [h.get("id") for h in homes],
-            "home_names": [h.get("appNickname") for h in homes],
-        }
-
-    @property
-    def icon(self) -> str:
-        """Return icon."""
-        return "mdi:code-json"

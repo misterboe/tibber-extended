@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-12-01
+
+### Added
+
+- **Configurable Calculation Window (14:00-14:00)**: New option to define when the 24-hour calculation period starts. Default is 14:00, which is when Tibber provides tomorrow's prices. This ensures you always have a full 24-hour planning window with all available data.
+  - Configurable via Options → "Berechnungsfenster" (Calculation Window)
+  - Range: 0-23 hours
+  - Recommended: 14 (when Tibber's tomorrow prices become available)
+
+- **Configurable Refresh Timing**: New option to configure the exact minute and second when hourly updates occur.
+  - Configurable via Options → "Aktualisierungszeit" (Refresh Timing)
+  - Default: XX:00:05 (5 seconds after each full hour)
+
+- **Comprehensive pytest test suite**: 49 automated tests covering:
+  - Coordinator calculations
+  - Binary sensor logic for all 24 hours
+  - Integration tests with mocked Tibber API
+  - Full day simulation tests
+
+### Changed
+
+- **Statistics now based on calculation window**: Average, min, max prices, and rank/percentile calculations now use prices within the configured 24-hour calculation window instead of just "today" prices.
+
+- **Past hours filtered from all sensors**: All hour-listing sensors (cheapest_hours, expensive_hours, best_consecutive_hours, time_window_cheapest_hours) now automatically filter out past hours. Only current hour and future hours are shown.
+
+### Fixed
+
+- **Best consecutive hours now shows NEXT window, not past hours**: At 18:00, the sensor previously showed 03:00-04:00 (past hours from this morning). Now correctly shows the next best consecutive window using only current and future hours.
+
+- **Fixed `best_3h_window` → `best_consecutive_hours`**: Corrected attribute name in current_price sensor attributes.
+
+- **Handle fewer hours than requested**: When fewer hours are available than configured (e.g., at 22:00 with only 2 remaining hours but `hours_duration=3`), the calculation now gracefully uses all available hours instead of failing.
+
+### Removed
+
+- **Removed `sensor.tibber_extended_last_api_response`**: The sensor caused Home Assistant database warnings because the raw API response exceeded the 16KB attribute size limit.
+
+## [1.2.2] - 2025-12-01
+
+### Fixed
+
+- **Best consecutive hours now shows NEXT window, not past hours**: At 18:00, the sensor previously showed 03:00-04:00 (past hours from this morning). Now correctly shows the next best consecutive window using only current and future hours from today and tomorrow's prices.
+
+- **Time window cheapest hours now excludes past hours**: Similar fix - the sensor now only considers current hour and future hours when finding the cheapest hours within the configured time window.
+
+### Removed
+
+- **Removed `sensor.tibber_extended_last_api_response`**: The sensor caused Home Assistant database warnings because the raw API response exceeded the 16KB attribute size limit. Since the sensor only makes sense with the complete data, it was removed entirely.
+
+## [1.2.1] - 2025-11-30
+
+### Fixed
+
+- **Remove invalid state_class from monetary sensors**: Home Assistant does not allow `state_class: measurement` for sensors with `device_class: monetary`. Removed `state_class` from:
+  - `sensor.{home}_current_price`
+  - `sensor.{home}_average_price`
+  - `sensor.{home}_min_price`
+  - `sensor.{home}_max_price`
+  - `sensor.{home}_price_deviation_absolute`
+  - `sensor.{home}_battery_breakeven_price`
+
+- **Display timestamps in local timezone**: `sensor.tibber_extended_last_api_response` now shows the time in local timezone instead of UTC. Also added `last_success_local` attribute to `sensor.tibber_extended_last_api_update`.
+
 ## [1.2.0] - 2025-11-30
 
 ### Added
@@ -211,6 +274,10 @@ The **Custom Time Window** feature allows you to:
 - Python 3.11 or newer
 - aiohttp >= 3.8.0
 
+[1.3.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.3.0
+[1.2.2]: https://github.com/misterboe/tibber-extended/releases/tag/v1.2.2
+[1.2.1]: https://github.com/misterboe/tibber-extended/releases/tag/v1.2.1
+[1.2.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.2.0
 [1.1.2]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.2
 [1.1.1]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.1
 [1.1.0]: https://github.com/misterboe/tibber-extended/releases/tag/v1.1.0

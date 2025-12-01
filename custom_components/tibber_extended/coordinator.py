@@ -65,6 +65,9 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         hours_duration: int = 3,
         time_window_start: str = "00:00",
         time_window_end: str = "23:59",
+        refresh_minute: int = 0,
+        refresh_second: int = 5,
+        calculation_hour: int = 14,
     ) -> None:
         """Initialize the coordinator."""
         self.api_key = api_key
@@ -72,13 +75,15 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         self.hours_duration = hours_duration
         self.time_window_start = time_window_start
         self.time_window_end = time_window_end
+        self.refresh_minute = refresh_minute
+        self.refresh_second = refresh_second
+        self.calculation_hour = calculation_hour
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         self._hourly_unsub: callable | None = None
         self._last_successful_fetch: datetime | None = None
-        self._last_api_response: dict | None = None
         self._using_cached_data: bool = False
 
         # Use longer backup interval (1 hour) since we trigger at full hour
@@ -91,26 +96,29 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def async_setup_hourly_refresh(self) -> None:
-        """Set up hourly refresh at the top of each hour."""
+        """Set up hourly refresh at the configured time each hour."""
         # Cancel existing subscription if any
         if self._hourly_unsub:
             self._hourly_unsub()
 
         @callback
         def _hourly_refresh(now: datetime) -> None:
-            """Trigger refresh at the top of each hour."""
+            """Trigger refresh at the configured time each hour."""
             _LOGGER.debug("Hourly refresh triggered at %s", now)
             self.hass.async_create_task(self.async_request_refresh())
 
-        # Schedule refresh at minute=0, second=5 of every hour
-        # Using second=5 to give Tibber API time to update after hour change
+        # Schedule refresh at configured minute/second of every hour
         self._hourly_unsub = async_track_time_change(
             self.hass,
             _hourly_refresh,
-            minute=0,
-            second=5,
+            minute=self.refresh_minute,
+            second=self.refresh_second,
         )
-        _LOGGER.info("Hourly refresh scheduled at XX:00:05")
+        _LOGGER.info(
+            "Hourly refresh scheduled at XX:%02d:%02d",
+            self.refresh_minute,
+            self.refresh_second,
+        )
 
     async def async_shutdown(self) -> None:
         """Shut down the coordinator."""
@@ -207,35 +215,49 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                         _LOGGER.warning(f"Home {home_id} has no current price, skipping")
                         continue
 
-                    # Calculate statistics for this home
-                    today_prices = [p["total"] for p in price_info.get("today", [])]
+                    # Get current time from API (not system time)
+                    current_hour_start = self._parse_tibber_timestamp(current["startsAt"])
                     current_price = current["total"]
 
-                    avg_price = sum(today_prices) / len(today_prices) if today_prices else current_price
-                    min_price = min(today_prices) if today_prices else current_price
-                    max_price = max(today_prices) if today_prices else current_price
-
-                    # Find cheapest and most expensive hours
-                    sorted_today = sorted(
+                    # Get prices within the calculation window (e.g., 14:00-14:00)
+                    window_prices = self._get_calculation_window_prices(
                         price_info.get("today", []),
-                        key=lambda x: x["total"]
+                        price_info.get("tomorrow", []),
+                        current_hour_start,
                     )
 
+                    # Calculate statistics based on calculation window prices
+                    window_price_values = [p["total"] for p in window_prices]
+                    avg_price = sum(window_price_values) / len(window_price_values) if window_price_values else current_price
+                    min_price = min(window_price_values) if window_price_values else current_price
+                    max_price = max(window_price_values) if window_price_values else current_price
+
+                    # Find cheapest and most expensive hours within the calculation window
+                    sorted_window = sorted(window_prices, key=lambda x: x["total"])
+
                     n = int(self.hours_duration)
-                    cheapest_hours = sorted_today[:n] if len(sorted_today) >= n else sorted_today
-                    expensive_hours = sorted_today[-n:] if len(sorted_today) >= n else sorted_today
+                    cheapest_hours = sorted_window[:n] if len(sorted_window) >= n else sorted_window
+                    expensive_hours = sorted_window[-n:] if len(sorted_window) >= n else sorted_window
 
                     # Calculate deviation from average
                     deviation_absolute = current_price - avg_price
                     deviation_percent = (deviation_absolute / avg_price * 100) if avg_price > 0 else 0
 
                     # Calculate rank (1 = cheapest, 24 = most expensive)
-                    rank = self._calculate_price_rank(current_price, today_prices)
+                    rank = self._calculate_price_rank(current_price, window_price_values)
 
                     # Calculate percentile (0-100, lower = cheaper)
-                    percentile = (rank / len(today_prices) * 100) if today_prices else 50
+                    percentile = (rank / len(window_price_values) * 100) if window_price_values else 50
 
-                    # Simplified cheapest_hours structure with price_level
+                    def is_current_or_future(hour_data: dict) -> bool:
+                        """Check if hour is current or in the future."""
+                        try:
+                            hour_time = self._parse_tibber_timestamp(hour_data["startsAt"])
+                            return hour_time >= current_hour_start
+                        except (ValueError, KeyError):
+                            return False
+
+                    # Simplified cheapest_hours structure - filtered to current+future only
                     cheapest_hours_simple = [
                         {
                             "start": h["startsAt"],
@@ -243,6 +265,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                             "price_level": h.get("level", "NORMAL")
                         }
                         for h in cheapest_hours
+                        if is_current_or_future(h)
                     ]
                     expensive_hours_simple = [
                         {
@@ -251,6 +274,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                             "price_level": h.get("level", "NORMAL")
                         }
                         for h in expensive_hours
+                        if is_current_or_future(h)
                     ]
 
                     # Calculate next cheap window (next time it becomes cheap)
@@ -261,9 +285,12 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                     )
 
                     # Calculate best consecutive window (configurable duration)
+                    # Use window_prices filtered to current+future only
+                    future_prices = [p for p in window_prices if is_current_or_future(p)]
+
                     best_consecutive_hours = self.calculate_best_time_window(
                         duration_hours=int(self.hours_duration),
-                        prices=price_info.get("today", [])
+                        prices=future_prices if future_prices else window_prices
                     )
 
                     # Extract home info for device
@@ -353,7 +380,6 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Success! Update tracking variables
             self._last_successful_fetch = datetime.now(timezone.utc)
-            self._last_api_response = response
             self._using_cached_data = False
             return all_homes_data
 
@@ -409,6 +435,86 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                 if current_price <= price:
                     return i + 1
             return len(sorted_prices)
+
+    # ==========================================================================
+    # Calculation Window Helper Functions
+    # ==========================================================================
+
+    def _get_calculation_window_prices(
+        self,
+        today_prices: list[dict],
+        tomorrow_prices: list[dict],
+        current_time: datetime,
+    ) -> list[dict]:
+        """Get prices within the 24-hour calculation window.
+
+        The calculation window runs from calculation_hour to calculation_hour (next day).
+        For example, with calculation_hour=14:
+        - If current time is 15:00, window is 14:00 today → 13:59 tomorrow
+        - If current time is 10:00, window is 14:00 yesterday → 13:59 today
+
+        Args:
+            today_prices: Today's prices from Tibber API
+            tomorrow_prices: Tomorrow's prices from Tibber API
+            current_time: Current datetime (timezone-aware)
+
+        Returns:
+            List of price dicts within the calculation window
+        """
+        calc_hour = self.calculation_hour
+        current_hour = current_time.hour
+
+        # Combine all available prices
+        all_prices = today_prices + tomorrow_prices
+
+        # Determine the window boundaries based on current time
+        if current_hour >= calc_hour:
+            # We're past calculation hour: window is calc_hour today → calc_hour tomorrow
+            # Include: today >= calc_hour AND tomorrow < calc_hour
+            window_prices = []
+            for price in all_prices:
+                try:
+                    price_time = self._parse_tibber_timestamp(price["startsAt"])
+                    price_hour = price_time.hour
+                    price_date = price_time.date()
+                    today_date = current_time.date()
+
+                    if price_date == today_date and price_hour >= calc_hour:
+                        # Today's hours from calc_hour onwards
+                        window_prices.append(price)
+                    elif price_date > today_date and price_hour < calc_hour:
+                        # Tomorrow's hours before calc_hour
+                        window_prices.append(price)
+                except (ValueError, KeyError):
+                    continue
+        else:
+            # We're before calculation hour: window is calc_hour yesterday → calc_hour today
+            # But we only have today's data, so use today's hours < calc_hour
+            # Plus yesterday's hours >= calc_hour (but we don't have yesterday's data)
+            # So effectively just use today's hours < calc_hour + any available from today >= calc_hour
+            window_prices = []
+            for price in all_prices:
+                try:
+                    price_time = self._parse_tibber_timestamp(price["startsAt"])
+                    price_hour = price_time.hour
+                    price_date = price_time.date()
+                    today_date = current_time.date()
+
+                    if price_date == today_date:
+                        # Today's hours - include all since we're in the window
+                        window_prices.append(price)
+                except (ValueError, KeyError):
+                    continue
+
+        # Sort by time
+        window_prices.sort(key=lambda x: x["startsAt"])
+
+        _LOGGER.debug(
+            f"Calculation window ({calc_hour}:00-{calc_hour}:00): "
+            f"{len(window_prices)} hours available"
+        )
+
+        return window_prices
 
     # ==========================================================================
     # Time Window Helper Functions
@@ -669,13 +775,16 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
             Dictionary with best window info (always returns a result if prices exist)
         """
         # Default empty result if no prices
-        if not prices or duration_hours <= 0 or len(prices) < duration_hours:
+        if not prices or duration_hours <= 0:
             return {
                 "hours": [],
                 "window_start": None,
                 "window_end": None,
                 "average_price": 0,
             }
+
+        # If fewer prices than requested, use all available prices
+        actual_duration = min(duration_hours, len(prices))
 
         # Parse time constraints if provided (supports overnight windows)
         constraint_params = None
@@ -684,8 +793,8 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
 
         windows = []
 
-        for i in range(len(prices) - duration_hours + 1):
-            window = prices[i:i + duration_hours]
+        for i in range(len(prices) - actual_duration + 1):
+            window = prices[i:i + actual_duration]
 
             # Check time constraints if provided
             if constraint_params:
@@ -734,7 +843,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
                 except (ValueError, KeyError):
                     continue
 
-            avg_price = sum(p["total"] for p in window) / duration_hours
+            avg_price = sum(p["total"] for p in window) / actual_duration
 
             windows.append({
                 "window": window,
@@ -743,8 +852,8 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
 
         # If no valid windows due to constraints, use first available window
         if not windows:
-            window = prices[:duration_hours]
-            avg_price = sum(p["total"] for p in window) / duration_hours
+            window = prices[:actual_duration]
+            avg_price = sum(p["total"] for p in window) / actual_duration
             windows.append({
                 "window": window,
                 "average_price": round(avg_price, 4),
@@ -767,7 +876,7 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         # Calculate end time
         try:
             start_dt = self._parse_tibber_timestamp(window_prices[0]["startsAt"])
-            end_dt = start_dt + timedelta(hours=duration_hours)
+            end_dt = start_dt + timedelta(hours=actual_duration)
         except (ValueError, KeyError):
             return {
                 "hours": hours,
@@ -841,10 +950,17 @@ class TibberDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
         # Filter prices within the active window boundaries (using full datetime comparison)
+        # Also filter out PAST hours - only include current hour and future hours
+        current_hour_start = now.replace(minute=0, second=0, microsecond=0)
+
         filtered_prices = []
         for price_data in prices:
             try:
                 hour_time = self._parse_tibber_timestamp(price_data["startsAt"])
+
+                # Skip past hours (only include current hour and future)
+                if hour_time < current_hour_start:
+                    continue
 
                 # Include if within the calculated window boundaries
                 if window_start_dt <= hour_time < window_end_dt:

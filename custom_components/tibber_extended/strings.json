@@ -34,7 +34,9 @@
         "menu_options": {
           "battery_settings": "Batterie-Einstellungen",
           "hours_duration": "Stundenanzahl",
-          "time_window": "Zeitfenster"
+          "time_window": "Zeitfenster",
+          "calculation_window": "Berechnungsfenster",
+          "refresh_timing": "Aktualisierungszeit"
         }
       },
       "battery_settings": {
@@ -67,6 +69,28 @@
         "data_description": {
           "time_window_start": "Start des Zeitfensters (z.B. 17:00 für Abend)",
           "time_window_end": "Ende des Zeitfensters (z.B. 07:00 für Morgen)"
+        }
+      },
+      "calculation_window": {
+        "title": "Berechnungsfenster",
+        "description": "Konfiguriere, ab welcher Stunde ein neuer Berechnungstag beginnt.\n\nDie Tomorrow-Preise von Tibber kommen ca. um 13:00-14:00 Uhr. Mit Berechnungsstart um 14:00 hast du immer alle Daten für 24 Stunden.\n\nAktuell: {current_hour}",
+        "data": {
+          "calculation_hour": "Berechnungsstart (Stunde)"
+        },
+        "data_description": {
+          "calculation_hour": "Stunde für den Start des 24h-Fensters (0-23, empfohlen: 14)"
+        }
+      },
+      "refresh_timing": {
+        "title": "Aktualisierungszeit",
+        "description": "Konfiguriere, wann die Daten jede Stunde aktualisiert werden.\n\nAktuell: XX:{current_minute}:{current_second}",
+        "data": {
+          "refresh_minute": "Minute",
+          "refresh_second": "Sekunde"
+        },
+        "data_description": {
+          "refresh_minute": "Minute der Stunde für Aktualisierung (0-59, Standard: 0)",
+          "refresh_second": "Sekunde für Aktualisierung (0-59, Standard: 5)"
         }
       }
     },

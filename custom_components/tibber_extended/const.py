@@ -24,3 +24,13 @@ CONF_TIME_WINDOW_START = "time_window_start"
 CONF_TIME_WINDOW_END = "time_window_end"
 DEFAULT_TIME_WINDOW_START = "17:00"
 DEFAULT_TIME_WINDOW_END = "07:00"
+
+# Refresh Timing Configuration
+CONF_REFRESH_MINUTE = "refresh_minute"
+CONF_REFRESH_SECOND = "refresh_second"
+DEFAULT_REFRESH_MINUTE = 0  # Refresh at minute :00 of each hour
+DEFAULT_REFRESH_SECOND = 5  # 5 seconds after the hour (gives Tibber API time to update)
+
+# Calculation Window Configuration
+CONF_CALCULATION_HOUR = "calculation_hour"
+DEFAULT_CALCULATION_HOUR = 14  # 14:00 - when tomorrow prices are available from Tibber

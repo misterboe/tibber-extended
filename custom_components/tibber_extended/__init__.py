@@ -9,11 +9,17 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from .const import (
     CONF_API_KEY,
     CONF_BATTERY_EFFICIENCY,
+    CONF_CALCULATION_HOUR,
     CONF_HOURS_DURATION,
+    CONF_REFRESH_MINUTE,
+    CONF_REFRESH_SECOND,
     CONF_TIME_WINDOW_END,
     CONF_TIME_WINDOW_START,
     DEFAULT_BATTERY_EFFICIENCY,
+    DEFAULT_CALCULATION_HOUR,
     DEFAULT_HOURS_DURATION,
+    DEFAULT_REFRESH_MINUTE,
+    DEFAULT_REFRESH_SECOND,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TIME_WINDOW_END,
     DEFAULT_TIME_WINDOW_START,
@@ -36,18 +42,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 CONF_HOURS_DURATION: DEFAULT_HOURS_DURATION,
                 CONF_TIME_WINDOW_START: DEFAULT_TIME_WINDOW_START,
                 CONF_TIME_WINDOW_END: DEFAULT_TIME_WINDOW_END,
+                CONF_REFRESH_MINUTE: DEFAULT_REFRESH_MINUTE,
+                CONF_REFRESH_SECOND: DEFAULT_REFRESH_SECOND,
+                CONF_CALCULATION_HOUR: DEFAULT_CALCULATION_HOUR,
             },
         )
-    # Migrate: Add time window settings to existing options if not present
-    elif CONF_TIME_WINDOW_START not in entry.options:
-        hass.config_entries.async_update_entry(
-            entry,
-            options={
-                **entry.options,
-                CONF_TIME_WINDOW_START: DEFAULT_TIME_WINDOW_START,
-                CONF_TIME_WINDOW_END: DEFAULT_TIME_WINDOW_END,
-            },
-        )
+    else:
+        # Migrate: Add missing options for existing installations
+        options_updated = False
+        new_options = {**entry.options}
+
+        if CONF_TIME_WINDOW_START not in entry.options:
+            new_options[CONF_TIME_WINDOW_START] = DEFAULT_TIME_WINDOW_START
+            new_options[CONF_TIME_WINDOW_END] = DEFAULT_TIME_WINDOW_END
+            options_updated = True
+
+        if CONF_REFRESH_MINUTE not in entry.options:
+            new_options[CONF_REFRESH_MINUTE] = DEFAULT_REFRESH_MINUTE
+            new_options[CONF_REFRESH_SECOND] = DEFAULT_REFRESH_SECOND
+            options_updated = True
+
+        if CONF_CALCULATION_HOUR not in entry.options:
+            new_options[CONF_CALCULATION_HOUR] = DEFAULT_CALCULATION_HOUR
+            options_updated = True
+
+        if options_updated:
+            hass.config_entries.async_update_entry(entry, options=new_options)
 
     api_key = entry.data[CONF_API_KEY]
     battery_efficiency = entry.data.get(
@@ -62,6 +82,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     time_window_end = entry.options.get(
         CONF_TIME_WINDOW_END, DEFAULT_TIME_WINDOW_END
     )
+    refresh_minute = entry.options.get(
+        CONF_REFRESH_MINUTE, DEFAULT_REFRESH_MINUTE
+    )
+    refresh_second = entry.options.get(
+        CONF_REFRESH_SECOND, DEFAULT_REFRESH_SECOND
+    )
+    calculation_hour = entry.options.get(
+        CONF_CALCULATION_HOUR, DEFAULT_CALCULATION_HOUR
+    )
 
     coordinator = TibberDataUpdateCoordinator(
         hass,
@@ -71,6 +100,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hours_duration=hours_duration,
         time_window_start=time_window_start,
         time_window_end=time_window_end,
+        refresh_minute=int(refresh_minute),
+        refresh_second=int(refresh_second),
+        calculation_hour=int(calculation_hour),
     )
 
     # Fetch initial data

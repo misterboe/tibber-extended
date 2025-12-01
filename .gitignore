@@ -6,7 +6,11 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 ENV/
+
+# Local scripts
+py/
 build/
 develop-eggs/
 dist/
